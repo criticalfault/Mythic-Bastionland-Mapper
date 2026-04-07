@@ -1,13 +1,30 @@
 import { io } from 'socket.io-client';
+import { auth } from './firebase.js';
 
-const params = new URLSearchParams(window.location.search);
-const gmToken = params.get('gm') || '';
-const roomId = params.get('room') || '';
+let _socket = null;
 
-const socket = io({
-  auth: { gmToken, roomId },
-  autoConnect: true,
-});
+export async function createSocket() {
+  // Get fresh Firebase ID token if user is signed in
+  const user = auth.currentUser;
+  const idToken = user ? await user.getIdToken(/* forceRefresh */ false) : '';
 
-export default socket;
-export { gmToken, roomId };
+  _socket = io({
+    auth: { idToken },
+    autoConnect: true,
+  });
+
+  return _socket;
+}
+
+export function getSocket() {
+  return _socket;
+}
+
+// Named export used by components that import socket directly
+export default {
+  get current() { return _socket; },
+  emit(...args) { _socket?.emit(...args); },
+  on(...args) { _socket?.on(...args); },
+  off(...args) { _socket?.off(...args); },
+  removeAllListeners(...args) { _socket?.removeAllListeners(...args); },
+};

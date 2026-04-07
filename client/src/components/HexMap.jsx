@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import HexTile from './HexTile.jsx';
 import PlayerToken from './PlayerToken.jsx';
+import PartyToken from './PartyToken.jsx';
 import PingOverlay from './PingOverlay.jsx';
 
 // Flat-top hex layout helpers
@@ -34,10 +35,10 @@ const HEX_SIZE = 52; // circumradius
 const PAD = HEX_SIZE;
 
 export default function HexMap({
-  map, players, pings,
+  map, players, partyMarker, pings,
   isGM, mode,
   onHexClick, onHexRightClick,
-  onPlayerMove, onPlayerPing,
+  onPlayerMove, onPartyMove, onPlayerPing,
 }) {
   const svgRef = useRef(null);
 
@@ -248,6 +249,21 @@ export default function HexMap({
           />
         );
       })}
+
+      {/* Party marker — always visible to everyone, GM can drag it */}
+      {partyMarker && (() => {
+        const center = getHexCenter(partyMarker.q, partyMarker.r);
+        return (
+          <PartyToken
+            cx={center.x}
+            cy={center.y}
+            size={HEX_SIZE}
+            isGM={isGM}
+            onMove={onPartyMove}
+            hexLayout={hexLayout}
+          />
+        );
+      })()}
 
       {/* Ping animations */}
       <PingOverlay pings={pings} getHexCenter={getHexCenter} />

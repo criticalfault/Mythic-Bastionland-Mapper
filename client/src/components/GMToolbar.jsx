@@ -22,20 +22,29 @@ export default function GMToolbar({
   const [exporting, setExporting] = useState(null); // 'gm' | 'player' | null
   const [savedMaps, setSavedMaps] = useState([]);
   const [savedStates, setSavedStates] = useState([]);
+  const [fileListError, setFileListError] = useState('');
+  const [fileListLoading, setFileListLoading] = useState(false);
   const [showMapDialog, setShowMapDialog] = useState(false);
   const [newMapCols, setNewMapCols] = useState(10);
   const [newMapRows, setNewMapRows] = useState(8);
   const [newMapName, setNewMapName] = useState('New Realm');
 
   React.useEffect(() => {
-    socket.on('map:list', ({ maps, states }) => {
-      setSavedMaps(maps);
-      setSavedStates(states);
+    socket.on('map:list', ({ maps, states, source, error }) => {
+      console.log('[map:list] received:', { maps, states, source, error });
+      setFileListLoading(false);
+      setFileListError(error ? `Error (${source}): ${error}` : '');
+      setSavedMaps(maps || []);
+      setSavedStates(states || []);
     });
     return () => socket.off('map:list');
   }, []);
 
-  const requestFileList = () => socket.emit('map:list');
+  const requestFileList = () => {
+    setFileListLoading(true);
+    setFileListError('');
+    socket.emit('map:list');
+  };
 
   const handleAddPlayer = () => {
     if (!newPlayerName.trim()) return;
@@ -221,20 +230,30 @@ export default function GMToolbar({
               </div>
             </div>
             <div className="toolbar-section">
-              <label className="field-label">Saved Maps</label>
-              {savedMaps.length === 0 && <p className="empty-hint">No saved maps.</p>}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <label className="field-label">Saved Maps</label>
+                <button className="btn-secondary" style={{ padding: '2px 8px', fontSize: 11 }} onClick={requestFileList} disabled={fileListLoading}>
+                  {fileListLoading ? '…' : '↻'}
+                </button>
+              </div>
+              {fileListError && <p className="empty-hint" style={{ color: '#f87171', fontSize: 11 }}>{fileListError}</p>}
+              {!fileListLoading && savedMaps.length === 0 && !fileListError && <p className="empty-hint">No saved maps.</p>}
               {savedMaps.map(m => (
-                <button key={m.filename} className="file-btn" onClick={() => socket.emit('map:load', { filename: m.filename })}>
+                <button key={m.id || m.filename} className="file-btn"
+                  onClick={() => socket.emit('map:load', { id: m.id, filename: m.filename })}>
                   📍 {m.name}
+                  {m.savedAt && <span className="file-date">{new Date(m.savedAt).toLocaleDateString()}</span>}
                 </button>
               ))}
             </div>
             <div className="toolbar-section">
               <label className="field-label">Saved Game States</label>
-              {savedStates.length === 0 && <p className="empty-hint">No saved states.</p>}
+              {!fileListLoading && savedStates.length === 0 && !fileListError && <p className="empty-hint">No saved states.</p>}
               {savedStates.map(s => (
-                <button key={s.filename} className="file-btn" onClick={() => socket.emit('state:load', { filename: s.filename })}>
+                <button key={s.id || s.filename} className="file-btn"
+                  onClick={() => socket.emit('state:load', { id: s.id, filename: s.filename })}>
                   🎲 {s.name}
+                  {s.savedAt && <span className="file-date">{new Date(s.savedAt).toLocaleDateString()}</span>}
                 </button>
               ))}
             </div>

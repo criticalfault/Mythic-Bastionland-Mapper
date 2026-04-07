@@ -18,21 +18,28 @@ export default function PlayerToken({ player, cx, cy, size, isGM, onMove, hexLay
     const toSVGCoords = (me) => {
       const vb = svg.viewBox.baseVal;
       const rect = svg.getBoundingClientRect();
+      const scale = Math.min(rect.width / vb.width, rect.height / vb.height);
+      const ox = (rect.width  - vb.width  * scale) / 2;
+      const oy = (rect.height - vb.height * scale) / 2;
       return {
-        x: vb.x + (me.clientX - rect.left) * (vb.width / rect.width),
-        y: vb.y + (me.clientY - rect.top) * (vb.height / rect.height),
+        x: vb.x + (me.clientX - rect.left - ox) / scale,
+        y: vb.y + (me.clientY - rect.top  - oy) / scale,
       };
     };
 
+    // Capture grab offset so the token doesn't snap its centre to the cursor
+    const grabPt = toSVGCoords(e);
+    const offset = { x: grabPt.x - cx, y: grabPt.y - cy };
+
     const onDragMove = (me) => {
       const { x, y } = toSVGCoords(me);
-      setDragPos({ x, y });
+      setDragPos({ x: x - offset.x, y: y - offset.y });
     };
 
     const onDragUp = (me) => {
       setDragging(false);
       const { x, y } = toSVGCoords(me);
-      const nearest = hexLayout.findNearestHex(x, y);
+      const nearest = hexLayout.findNearestHex(x - offset.x, y - offset.y);
       if (nearest) {
         onMove(player.id, nearest.q, nearest.r);
       }

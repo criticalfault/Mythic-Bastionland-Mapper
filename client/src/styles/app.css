@@ -468,6 +468,16 @@ body {
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
+/* ── PARTY TOKEN ── */
+.party-token {
+  filter: drop-shadow(0 0 6px rgba(200, 181, 96, 0.5));
+  animation: partyGlow 3s ease-in-out infinite;
+}
+@keyframes partyGlow {
+  0%, 100% { filter: drop-shadow(0 0 5px rgba(200, 181, 96, 0.4)); }
+  50%       { filter: drop-shadow(0 0 12px rgba(200, 181, 96, 0.75)); }
+}
+
 /* ── HEX HOVER ── */
 .hex-tile polygon:first-child {
   transition: filter 0.1s;
@@ -480,3 +490,497 @@ body {
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── DICE HEADER BUTTON ── */
+.dice-header-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 18px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  line-height: 1;
+}
+.dice-header-btn:hover,
+.dice-header-btn.active {
+  background: var(--surface2);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── DICE PANEL (right-side drawer) ── */
+.dice-panel {
+  position: fixed;
+  top: var(--header-h);
+  right: 0;
+  width: 260px;
+  height: calc(100vh - var(--header-h));
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  z-index: 50;
+  overflow-y: auto;
+}
+
+.dice-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.dice-panel-title {
+  font-family: 'Cinzel', serif;
+  font-size: 14px;
+  color: var(--accent);
+}
+.dice-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+}
+.dice-close:hover { color: var(--text); }
+
+/* ── DIE TYPE ROWS ── */
+.die-rows {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.die-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.die-row-label {
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  color: var(--accent);
+  width: 28px;
+  flex-shrink: 0;
+}
+.die-count-group {
+  display: flex;
+  gap: 3px;
+}
+.die-count-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface2);
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+  font-family: 'Cinzel', serif;
+}
+.die-count-btn:hover { background: var(--surface3); color: var(--text); }
+.die-count-btn.active {
+  background: var(--accent2);
+  border-color: var(--accent2);
+  color: #fff;
+}
+
+/* ── DICE IDENTITY ── */
+.dice-identity {
+  padding: 0 10px 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  flex-shrink: 0;
+}
+
+/* ── ROLL BUTTON ── */
+.roll-btn {
+  margin: 10px;
+  padding: 10px;
+  font-size: 14px;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+.roll-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── DICE RESULTS OVERLAY ── */
+.dice-results-overlay {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  z-index: 300;
+  pointer-events: none;
+  max-width: 90vw;
+}
+
+.roll-card {
+  background: rgba(15, 15, 30, 0.92);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  pointer-events: all;
+  animation: rollCardIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  backdrop-filter: blur(6px);
+  min-width: 220px;
+}
+.roll-card-fade {
+  animation: rollCardOut 1.2s ease forwards;
+}
+
+@keyframes rollCardIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.92); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes rollCardOut {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(10px); }
+}
+
+.roll-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+.roll-card-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.roll-card-name {
+  font-family: 'Cinzel', serif;
+  font-weight: 600;
+  font-size: 13px;
+}
+.roll-card-verb { color: var(--text-muted); }
+.roll-card-x {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 2px;
+  opacity: 0.6;
+}
+.roll-card-x:hover { opacity: 1; }
+
+.roll-card-dice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+/* ── DIE FACE ── */
+.die-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  animation: diePop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.die-face-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: 'Cinzel', serif;
+}
+.die-rolling svg {
+  animation: dieShake 0.1s ease infinite alternate;
+}
+.die-settled svg {
+  animation: dieSettle 0.25s ease forwards;
+}
+.die-max svg { filter: drop-shadow(0 0 6px #ffd700); }
+.die-min svg { filter: drop-shadow(0 0 6px #ff5555); }
+
+@keyframes diePop {
+  from { opacity: 0; transform: scale(0.5) rotate(-15deg); }
+  to   { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+@keyframes dieShake {
+  from { transform: rotate(-4deg) scale(0.97); }
+  to   { transform: rotate(4deg) scale(1.03); }
+}
+@keyframes dieSettle {
+  0%   { transform: scale(1.15); }
+  60%  { transform: scale(0.96); }
+  100% { transform: scale(1); }
+}
+
+/* ── LOGIN SCREEN ── */
+.login-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: var(--bg);
+}
+.login-content {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.2rem;
+}
+.login-subtitle {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 1rem;
+  margin-top: -0.8rem;
+}
+.btn-google {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  color: #333;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-size: 15px;
+  font-family: 'Crimson Text', serif;
+  font-weight: 600;
+  cursor: pointer;
+  transition: box-shadow 0.15s, transform 0.1s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+.btn-google:hover {
+  box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+  transform: translateY(-1px);
+}
+
+/* ── SIGN OUT ── */
+.btn-signout {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-muted);
+  font-family: 'Crimson Text', serif;
+  font-size: 13px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.btn-signout:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+/* ── FILE DATE ── */
+.file-date {
+  display: block;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+/* ── LOBBY ── */
+.lobby-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--bg);
+  padding: 1rem;
+}
+
+.lobby-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 2rem;
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.lobby-title {
+  font-family: 'Cinzel', serif;
+  font-size: 1.8rem;
+  color: var(--accent);
+  text-align: center;
+  margin: 0;
+}
+
+.lobby-subtitle {
+  color: var(--text-muted);
+  text-align: center;
+  font-style: italic;
+  font-size: 1rem;
+  margin-top: -0.8rem;
+}
+
+.lobby-user {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.lobby-user strong { color: var(--text); }
+
+.lobby-tabs {
+  display: flex;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.lobby-tabs button {
+  flex: 1;
+  padding: 8px 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.lobby-tabs button.active {
+  background: var(--surface3);
+  color: var(--accent);
+  font-weight: 600;
+}
+.lobby-tabs button:hover:not(.active) {
+  background: var(--surface3);
+  color: var(--text);
+}
+
+.lobby-error {
+  background: rgba(200, 50, 50, 0.15);
+  border: 1px solid #7c1f1f;
+  border-radius: 6px;
+  color: #fca5a5;
+  padding: 8px 12px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.lobby-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.lobby-create {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.lobby-rooms {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.lobby-room-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.lobby-room-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lobby-room-name {
+  font-size: 15px;
+  color: var(--text);
+}
+
+.lobby-invite-code {
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  color: var(--accent);
+  letter-spacing: 2px;
+}
+
+.lobby-hint {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-style: italic;
+  text-align: center;
+}
+
+.invite-code-input {
+  font-family: 'Courier New', monospace;
+  font-size: 1.3rem;
+  letter-spacing: 4px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+/* Invite code in header */
+.invite-code-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.invite-code-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--accent);
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  letter-spacing: 1px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.invite-code-btn:hover {
+  background: var(--surface3);
+}
+
+.copy-code-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.15s;
+}
+.copy-code-btn:hover {
+  background: var(--surface3);
+}
+
+.btn-leave {
+  font-size: 13px;
+  padding: 5px 10px;
+}
