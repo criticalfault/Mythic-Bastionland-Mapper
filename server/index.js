@@ -431,6 +431,40 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('map:delete', async ({ id, filename }) => {
+    await authReady;
+    if (!isGMSocket()) return;
+    const g = gs(); if (!g) return;
+    try {
+      if (fsDb.USE_FIRESTORE && id) {
+        await fsDb.deleteMap(id);
+      } else if (filename) {
+        const filePath = require('path').join(__dirname, 'saves', filename);
+        if (require('fs').existsSync(filePath)) require('fs').unlinkSync(filePath);
+      }
+      socket.emit('map:deleted', { id, filename });
+    } catch (e) {
+      socket.emit('error:save', { message: `Delete failed: ${e.message}` });
+    }
+  });
+
+  socket.on('state:delete', async ({ id, filename }) => {
+    await authReady;
+    if (!isGMSocket()) return;
+    const g = gs(); if (!g) return;
+    try {
+      if (fsDb.USE_FIRESTORE && id) {
+        await fsDb.deleteGameState(id);
+      } else if (filename) {
+        const filePath = require('path').join(__dirname, 'saves', filename);
+        if (require('fs').existsSync(filePath)) require('fs').unlinkSync(filePath);
+      }
+      socket.emit('state:deleted', { id, filename });
+    } catch (e) {
+      socket.emit('error:save', { message: `Delete failed: ${e.message}` });
+    }
+  });
+
   socket.on('map:list', async () => {
     await authReady;
     if (!isGMSocket()) return;

@@ -49,6 +49,11 @@ async function deleteMap(docId) {
   await db.collection(MAPS_COLLECTION).doc(docId).delete();
 }
 
+async function deleteGameState(docId) {
+  if (!USE_FIRESTORE) return;
+  await db.collection(STATES_COLLECTION).doc(docId).delete();
+}
+
 // --- Game State CRUD ---
 
 async function saveGameState(name, stateData, uid) {
@@ -177,6 +182,7 @@ module.exports = {
   loadMap,
   listMaps,
   deleteMap,
+  deleteGameState,
   // Game states
   saveGameState,
   loadGameState,

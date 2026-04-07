@@ -239,22 +239,44 @@ export default function GMToolbar({
               {fileListError && <p className="empty-hint" style={{ color: '#f87171', fontSize: 11 }}>{fileListError}</p>}
               {!fileListLoading && savedMaps.length === 0 && !fileListError && <p className="empty-hint">No saved maps.</p>}
               {savedMaps.map(m => (
-                <button key={m.id || m.filename} className="file-btn"
-                  onClick={() => socket.emit('map:load', { id: m.id, filename: m.filename })}>
-                  📍 {m.name}
-                  {m.savedAt && <span className="file-date">{new Date(m.savedAt).toLocaleDateString()}</span>}
-                </button>
+                <div key={m.id || m.filename} className="file-row">
+                  <button className="file-btn" onClick={() => socket.emit('map:load', { id: m.id, filename: m.filename })}>
+                    📍 {m.name}
+                    {m.savedAt && <span className="file-date">{new Date(m.savedAt).toLocaleDateString()}</span>}
+                  </button>
+                  <button
+                    className="btn-danger-sm"
+                    title="Delete map"
+                    onClick={() => {
+                      if (confirm(`Delete "${m.name}"? This cannot be undone.`)) {
+                        socket.emit('map:delete', { id: m.id, filename: m.filename });
+                        setSavedMaps(prev => prev.filter(x => (x.id || x.filename) !== (m.id || m.filename)));
+                      }
+                    }}
+                  >✕</button>
+                </div>
               ))}
             </div>
             <div className="toolbar-section">
               <label className="field-label">Saved Game States</label>
               {!fileListLoading && savedStates.length === 0 && !fileListError && <p className="empty-hint">No saved states.</p>}
               {savedStates.map(s => (
-                <button key={s.id || s.filename} className="file-btn"
-                  onClick={() => socket.emit('state:load', { id: s.id, filename: s.filename })}>
-                  🎲 {s.name}
-                  {s.savedAt && <span className="file-date">{new Date(s.savedAt).toLocaleDateString()}</span>}
-                </button>
+                <div key={s.id || s.filename} className="file-row">
+                  <button className="file-btn" onClick={() => socket.emit('state:load', { id: s.id, filename: s.filename })}>
+                    🎲 {s.name}
+                    {s.savedAt && <span className="file-date">{new Date(s.savedAt).toLocaleDateString()}</span>}
+                  </button>
+                  <button
+                    className="btn-danger-sm"
+                    title="Delete state"
+                    onClick={() => {
+                      if (confirm(`Delete "${s.name}"? This cannot be undone.`)) {
+                        socket.emit('state:delete', { id: s.id, filename: s.filename });
+                        setSavedStates(prev => prev.filter(x => (x.id || x.filename) !== (s.id || s.filename)));
+                      }
+                    }}
+                  >✕</button>
+                </div>
               ))}
             </div>
           </div>

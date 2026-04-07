@@ -785,6 +785,23 @@ body {
   border-color: var(--text-muted);
 }
 
+/* ── FILE ROW (load + delete) ── */
+.file-row {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.file-row .file-btn {
+  flex: 1;
+  margin-bottom: 0;
+}
+.file-row .btn-danger-sm {
+  flex-shrink: 0;
+  align-self: stretch;
+  padding: 0 8px;
+}
+
 /* ── FILE DATE ── */
 .file-date {
   display: block;
