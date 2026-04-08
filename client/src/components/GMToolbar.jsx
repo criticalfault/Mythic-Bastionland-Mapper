@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import socket from '../socket.js';
+import { trackMapSaved, trackStateSaved, trackMapExported, trackNewMap, trackPlayerAdded } from '../utils/analytics.js';
 import { v4 as uuidv4 } from 'uuid';
 import { regularTileUrls, specialTileUrls, REGULAR_TILE_NAMES, SPECIAL_TILE_NAMES } from '../tiles.js';
 import { exportMapAsPng } from '../utils/exportMap.js';
@@ -48,6 +49,7 @@ export default function GMToolbar({
 
   const handleAddPlayer = () => {
     if (!newPlayerName.trim()) return;
+    trackPlayerAdded();
     socket.emit('player:add', {
       id: uuidv4(),
       name: newPlayerName.trim(),
@@ -59,6 +61,7 @@ export default function GMToolbar({
   };
 
   const handleNewMap = () => {
+    trackNewMap();
     socket.emit('map:new', {
       cols: parseInt(newMapCols),
       rows: parseInt(newMapRows),
@@ -197,7 +200,7 @@ export default function GMToolbar({
                   disabled={!!exporting}
                   onClick={async () => {
                     setExporting('gm');
-                    await exportMapAsPng(map, 'gm').catch(() => {});
+                    await exportMapAsPng(map, 'gm').catch(() => {}); trackMapExported('gm');
                     setExporting(null);
                   }}
                 >
@@ -208,7 +211,7 @@ export default function GMToolbar({
                   disabled={!!exporting}
                   onClick={async () => {
                     setExporting('player');
-                    await exportMapAsPng(map, 'player').catch(() => {});
+                    await exportMapAsPng(map, 'player').catch(() => {}); trackMapExported('player');
                     setExporting(null);
                   }}
                 >
@@ -225,8 +228,8 @@ export default function GMToolbar({
                 onChange={e => setSaveName(e.target.value)}
               />
               <div className="btn-row">
-                <button className="btn-primary" onClick={() => { socket.emit('map:save', { name: saveName.trim() || map.name }); setSaveName(''); }}>Save Map</button>
-                <button className="btn-secondary" onClick={() => { socket.emit('state:save', { name: saveName.trim() || map.name + '-state' }); setSaveName(''); }}>Save State</button>
+                <button className="btn-primary" onClick={() => { socket.emit('map:save', { name: saveName.trim() || map.name }); trackMapSaved(); setSaveName(''); }}>Save Map</button>
+                <button className="btn-secondary" onClick={() => { socket.emit('state:save', { name: saveName.trim() || map.name + '-state' }); trackStateSaved(); setSaveName(''); }}>Save State</button>
               </div>
             </div>
             <div className="toolbar-section">

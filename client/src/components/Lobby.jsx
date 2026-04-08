@@ -4,7 +4,9 @@ import socket from '../socket.js';
 export default function Lobby({ authUser, onJoined }) {
   const [tab, setTab] = useState('my-realms'); // 'my-realms' | 'join'
   const [realmName, setRealmName] = useState('');
+  const [password, setPassword] = useState('');
   const [inviteCode, setInviteCode] = useState('');
+  const [joinPassword, setJoinPassword] = useState('');
   const [myRooms, setMyRooms] = useState(null); // null = loading
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
@@ -40,7 +42,7 @@ export default function Lobby({ authUser, onJoined }) {
   const handleCreate = () => {
     setError('');
     setCreating(true);
-    socket.emit('lobby:createRoom', { realmName: realmName.trim() || 'New Realm' });
+    socket.emit('lobby:createRoom', { realmName: realmName.trim() || 'New Realm', password: password.trim() });
   };
 
   const handleJoin = () => {
@@ -48,7 +50,7 @@ export default function Lobby({ authUser, onJoined }) {
     if (!code) return setError('Enter an invite code.');
     setError('');
     setJoining(true);
-    socket.emit('lobby:joinRoom', { inviteCode: code });
+    socket.emit('lobby:joinRoom', { inviteCode: code, password: joinPassword.trim() });
   };
 
   const handleRejoin = (room) => {
@@ -96,6 +98,14 @@ export default function Lobby({ authUser, onJoined }) {
                 onKeyDown={e => e.key === 'Enter' && handleCreate()}
                 disabled={creating}
               />
+              <input
+                className="text-input"
+                type="password"
+                placeholder="Password (optional)…"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                disabled={creating}
+              />
               <button
                 className="btn-primary full-width"
                 onClick={handleCreate}
@@ -114,7 +124,7 @@ export default function Lobby({ authUser, onJoined }) {
               {myRooms && myRooms.map(room => (
                 <div key={room.roomId} className="lobby-room-row">
                   <div className="lobby-room-info">
-                    <span className="lobby-room-name">{room.realmName}</span>
+                    <span className="lobby-room-name">{room.realmName}{room.hasPassword ? ' 🔒' : ''}</span>
                     <span className="lobby-invite-code">{room.inviteCode}</span>
                   </div>
                   <button
@@ -140,6 +150,15 @@ export default function Lobby({ authUser, onJoined }) {
               onChange={e => setInviteCode(e.target.value.toUpperCase())}
               onKeyDown={e => e.key === 'Enter' && handleJoin()}
               maxLength={6}
+              disabled={joining}
+            />
+            <input
+              className="text-input"
+              type="password"
+              placeholder="Password (if required)…"
+              value={joinPassword}
+              onChange={e => setJoinPassword(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleJoin()}
               disabled={joining}
             />
             <button

@@ -7,7 +7,9 @@ import HexMap from './components/HexMap.jsx';
 import GMToolbar from './components/GMToolbar.jsx';
 import PingOverlay from './components/PingOverlay.jsx';
 import DicePanel from './components/DicePanel.jsx';
+import ChatPanel from './components/ChatPanel.jsx';
 import Lobby from './components/Lobby.jsx';
+import { trackSignIn, trackRealmCreated, trackRealmJoined, trackHexRevealed, trackPing } from './utils/analytics.js';
 
 export default function App() {
   const [authUser, setAuthUser] = useState(null);
@@ -25,6 +27,7 @@ export default function App() {
   const [diceOpen, setDiceOpen] = useState(false);
   const [diceRolls, setDiceRolls] = useState([]);
   const [showInviteCode, setShowInviteCode] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
 
   const notify = useCallback((msg) => {
     setNotification(msg);
@@ -55,6 +58,7 @@ export default function App() {
       setCurrentRoom(null);
       setGameState(null);
       setIsGM(false);
+      setChatMessages([]);
     });
     s.on('disconnect', () => setConnected(false));
 
@@ -66,14 +70,16 @@ export default function App() {
 
   // --- Room joined handler ---
   const handleRoomJoined = useCallback((data) => {
-    const { roomId, inviteCode, realmName, isGM: gmFlag, state } = data;
+    const { roomId, inviteCode, realmName, isGM: gmFlag, state, chatLog } = data;
     setCurrentRoom({ roomId, inviteCode, realmName });
     setIsGM(gmFlag);
     setGameState(structuredClone(state));
+    setChatMessages(chatLog || []);
     // Update URL to include room code for easy sharing
     const url = new URL(window.location.href);
     url.searchParams.set('room', inviteCode);
     window.history.replaceState({}, '', url.toString());
+    if (gmFlag) trackRealmCreated(); else trackRealmJoined();
   }, []);
 
   // --- In-room socket listeners ---
@@ -245,6 +251,7 @@ export default function App() {
       socket.emit('tile:setTerrain', { key, terrain: selectedTerrain, label: hex?.label });
     } else {
       socket.emit('tile:reveal', { key });
+      trackHexRevealed();
     }
   }, [isGM, mode, selectedTerrain]);
 
@@ -269,6 +276,7 @@ export default function App() {
 
   const handlePing = useCallback((q, r) => {
     socket.emit('ping', { q, r });
+    trackPing();
   }, []);
 
   const handleClearLog = useCallback(() => setDiceRolls([]), []);
@@ -277,6 +285,7 @@ export default function App() {
     setCurrentRoom(null);
     setGameState(null);
     setIsGM(false);
+    setChatMessages([]);
     const url = new URL(window.location.href);
     url.searchParams.delete('room');
     window.history.replaceState({}, '', url.toString());
@@ -303,7 +312,7 @@ export default function App() {
           <p className="login-subtitle">Remote Play</p>
           <button
             className="btn-google"
-            onClick={() => signInWithPopup(auth, googleProvider)}
+            onClick={() => signInWithPopup(auth, googleProvider).then(trackSignIn).catch(() => {})}
           >
             <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -428,6 +437,8 @@ export default function App() {
       </div>
 
       {diceOpen && <DicePanel isGM={isGM} onClose={() => setDiceOpen(false)} rolls={diceRolls} onClearLog={handleClearLog} />}
+
+      <ChatPanel authUser={authUser} isGM={isGM} initialMessages={chatMessages} />
 
       {notification && (
         <div className="notification">{notification}</div>

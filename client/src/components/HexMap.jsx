@@ -3,6 +3,7 @@ import HexTile from './HexTile.jsx';
 import PlayerToken from './PlayerToken.jsx';
 import PartyToken from './PartyToken.jsx';
 import PingOverlay from './PingOverlay.jsx';
+import socket from '../socket.js';
 
 // Flat-top hex layout helpers
 // q = column, r = row (offset coords, "even-q" offset)
@@ -146,6 +147,19 @@ export default function HexMap({
     lastPaintedKey.current = null;
     mouseDownPos.current = null;
   };
+
+  // Ctrl+Z undo (GM only)
+  useEffect(() => {
+    if (!isGM) return;
+    const handleKeyDown = (e) => {
+      if (e.ctrlKey && e.key === 'z') {
+        e.preventDefault();
+        socket.emit('map:undo');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isGM]);
 
   // Scroll to zoom — must be non-passive to call preventDefault()
   useEffect(() => {

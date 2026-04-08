@@ -44,6 +44,8 @@ function getOrCreateRoomInMemory(roomId, meta) {
     gmName: meta.gmName,
     realmName: meta.realmName,
     inviteCode: meta.inviteCode,
+    passwordHash: meta.passwordHash || '',
+    chatLog: [],
   };
   rooms.set(roomId, entry);
   inviteIndex.set(meta.inviteCode.toUpperCase(), roomId);
@@ -136,16 +138,17 @@ io.on('connection', (socket) => {
   });
 
   // Create a new room
-  socket.on('lobby:createRoom', async ({ realmName }) => {
+  socket.on('lobby:createRoom', async ({ realmName, password }) => {
     await authReady;
     if (!uid) return socket.emit('lobby:error', { message: 'Not signed in.' });
     try {
-      const result = await fsDb.createRoom(uid, displayName, realmName || 'New Realm');
+      const result = await fsDb.createRoom(uid, displayName, realmName || 'New Realm', password);
       const room = getOrCreateRoomInMemory(result.roomId, {
         gmUid: uid,
         gmName: displayName,
         realmName: result.realmName,
         inviteCode: result.inviteCode,
+        passwordHash: result.passwordHash || '',
         lastState: null,
       });
       // GM joins the room
@@ -160,6 +163,7 @@ io.on('connection', (socket) => {
         realmName: result.realmName,
         isGM: true,
         state: room.gs.getState(),
+        chatLog: room.chatLog,
       });
     } catch (e) {
       console.error('[lobby:createRoom]', e);
@@ -168,7 +172,7 @@ io.on('connection', (socket) => {
   });
 
   // Join a room by invite code
-  socket.on('lobby:joinRoom', async ({ inviteCode }) => {
+  socket.on('lobby:joinRoom', async ({ inviteCode, password }) => {
     await authReady;
     if (!inviteCode) return socket.emit('lobby:error', { message: 'No invite code provided.' });
     const code = String(inviteCode).trim().toUpperCase();
@@ -197,7 +201,17 @@ io.on('connection', (socket) => {
       }
 
       const room = rooms.get(roomId);
+
+      // Password check (GMs bypass password)
       const isGM = uid && uid === room.gmUid;
+      if (!isGM && room.passwordHash) {
+        const crypto = require('crypto');
+        const provided = crypto.createHash('sha256').update(String(password || '')).digest('hex');
+        if (provided !== room.passwordHash) {
+          return socket.emit('lobby:error', { message: 'Incorrect password.' });
+        }
+      }
+
       if (isGM) room.gmSockets.add(socket.id);
 
       socket.join(roomId);
@@ -210,6 +224,7 @@ io.on('connection', (socket) => {
         realmName: room.realmName,
         isGM,
         state: room.gs.getState(),
+        chatLog: room.chatLog,
       });
     } catch (e) {
       console.error('[lobby:joinRoom]', e);
@@ -493,6 +508,17 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ── UNDO (GM only) ──
+
+  socket.on('map:undo', () => {
+    if (!isGMSocket()) return;
+    const g = gs(); if (!g) return;
+    const result = g.undo();
+    if (!result) return;
+    broadcastRoom('tile:setTerrain', { key: result.key, hex: result.hex });
+    scheduleAutoSave(roomId());
+  });
+
   // ── DICE (available to all in room) ──
 
   socket.on('dice:roll', ({ dice, rollerName, rollerColor }) => {
@@ -516,6 +542,28 @@ io.on('connection', (socket) => {
       results,
       timestamp: Date.now(),
     });
+  });
+
+  // ── CHAT (available to all in room) ──
+
+  socket.on('chat:send', ({ text }) => {
+    const rid = roomId();
+    if (!rid) return;
+    const room = rooms.get(rid);
+    if (!room) return;
+    const safe = String(text || '').trim().slice(0, 300);
+    if (!safe) return;
+    const msg = {
+      id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      senderName: displayName,
+      senderUid: uid,
+      text: safe,
+      timestamp: Date.now(),
+      isGM: room.gmSockets.has(socket.id),
+    };
+    room.chatLog.push(msg);
+    if (room.chatLog.length > 100) room.chatLog.shift();
+    io.to(rid).emit('chat:message', msg);
   });
 
   // ── PING (available to all in room) ──

@@ -59,6 +59,7 @@ class GameState {
         partyMarker: { q: Math.floor(map.cols / 2), r: Math.floor(map.rows / 2) },
       };
     }
+    this.undoStack = [];
   }
 
   getState() { return this.state; }
@@ -76,8 +77,24 @@ class GameState {
     this.state.partyMarker = { q, r };
   }
 
+  _pushUndo(key) {
+    const prev = this.state.map.hexes[key];
+    if (!prev) return;
+    this.undoStack.push({ key, hex: structuredClone(prev) });
+    if (this.undoStack.length > 50) this.undoStack.shift();
+  }
+
+  undo() {
+    if (this.undoStack.length === 0) return null;
+    const { key, hex } = this.undoStack.pop();
+    if (!this.state.map.hexes[key]) return null;
+    this.state.map.hexes[key] = hex;
+    return { key, hex };
+  }
+
   updateTerrain(key, terrain, label) {
     if (!this.state.map.hexes[key]) return false;
+    this._pushUndo(key);
     this.state.map.hexes[key] = {
       ...this.state.map.hexes[key],
       terrain: VALID_TERRAINS.has(terrain) ? terrain : this.state.map.hexes[key].terrain,
@@ -88,6 +105,7 @@ class GameState {
 
   updateSpecialTile(key, specialTile) {
     if (!this.state.map.hexes[key]) return false;
+    this._pushUndo(key);
     const val = specialTile ? specialTile.toLowerCase() : null;
     this.state.map.hexes[key].specialTile = (val && VALID_SPECIALS.has(val)) ? val : null;
     return true;

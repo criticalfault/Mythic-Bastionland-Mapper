@@ -5,7 +5,11 @@
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "node server/index.js",
     "client": "npm --prefix client run dev",
-    "install:all": "npm install && npm --prefix client install"
+    "install:all": "npm install && npm --prefix client install",
+    "test": "vitest run --config server/vitest.config.js",
+    "test:watch": "vitest --config server/vitest.config.js",
+    "test:client": "npm --prefix client run test",
+    "test:all": "npm test && npm run test:client"
   },
   "dependencies": {
     "concurrently": "^8.2.2",
@@ -15,5 +19,8 @@
     "firebase-admin": "^13.7.0",
     "socket.io": "^4.7.2",
     "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.3"
   }
 }

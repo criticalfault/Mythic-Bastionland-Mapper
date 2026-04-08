@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import socket from '../socket.js';
+import { trackDiceRolled } from '../utils/analytics.js';
 
 const DIE_TYPES = [4, 6, 8, 10, 12, 20];
 const COLORS = ['#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6','#1abc9c','#e67e22','#e8e0cc'];
@@ -42,9 +43,6 @@ function DieFaceAnimated({ type, result, color, index }) {
     return () => clearInterval(id);
   }, [result, type]);
 
-  const isMax = settled && result === type;
-  const isMin = settled && result === 1;
-  const numColor = isMax ? '#ffd700' : isMin ? '#ff5555' : color;
   const fontSize = (num ?? 0) >= 10 ? 24 : 30;
   const fill = color + '30';
 
@@ -57,7 +55,7 @@ function DieFaceAnimated({ type, result, color, index }) {
 
   return (
     <div
-      className={`die-face${settled ? ' die-settled' : ' die-rolling'}${isMax ? ' die-max' : ''}${isMin ? ' die-min' : ''}`}
+      className={`die-face${settled ? ' die-settled' : ' die-rolling'}`}
       style={{ animationDelay: `${index * 0.07}s` }}
       title={`d${type}: ${result}`}
     >
@@ -65,12 +63,10 @@ function DieFaceAnimated({ type, result, color, index }) {
         {shape}
         {num !== null && (
           <text x="50" y="54" textAnchor="middle" dominantBaseline="middle"
-            fontSize={fontSize} fill={numColor} fontWeight="bold" fontFamily="Cinzel,serif">
+            fontSize={fontSize} fill={color} fontWeight="bold" fontFamily="Cinzel,serif">
             {num}
           </text>
         )}
-        {isMax && <text x="50" y="89" textAnchor="middle" fontSize="11" fill="#ffd700" fontFamily="Cinzel,serif" fontWeight="bold">MAX</text>}
-        {isMin && <text x="50" y="89" textAnchor="middle" fontSize="11" fill="#ff5555" fontFamily="Cinzel,serif" fontWeight="bold">FUMBLE</text>}
       </svg>
       <span className="die-face-label">d{type}</span>
     </div>
@@ -79,9 +75,6 @@ function DieFaceAnimated({ type, result, color, index }) {
 
 // Static die face — used for older log entries
 function DieFaceStatic({ type, result, color }) {
-  const isMax = result === type;
-  const isMin = result === 1;
-  const numColor = isMax ? '#ffd700' : isMin ? '#ff5555' : color;
   const fill = color + '22';
   const fontSize = result >= 10 ? 28 : 34;
 
@@ -97,7 +90,7 @@ function DieFaceStatic({ type, result, color }) {
       <svg viewBox="0 0 100 100" width="38" height="38">
         {shape}
         <text x="50" y="54" textAnchor="middle" dominantBaseline="middle"
-          fontSize={fontSize} fill={numColor} fontWeight="bold" fontFamily="Cinzel,serif">
+          fontSize={fontSize} fill={color} fontWeight="bold" fontFamily="Cinzel,serif">
           {result}
         </text>
       </svg>
@@ -107,8 +100,6 @@ function DieFaceStatic({ type, result, color }) {
 
 function RollLogEntry({ roll, isNewest }) {
   const total = roll.results.reduce((s, d) => s + d.result, 0);
-  const hasMax = roll.results.some(d => d.result === d.type);
-  const hasFumble = roll.results.some(d => d.result === 1);
 
   // Summarise dice: "2d6 + 1d20" etc.
   const diceSummary = Object.entries(
@@ -137,8 +128,6 @@ function RollLogEntry({ roll, isNewest }) {
 
       <div className="roll-log-footer">
         <span className="roll-log-total">Total: <strong>{total}</strong></span>
-        {hasMax && <span className="roll-log-badge roll-log-badge-max">MAX</span>}
-        {hasFumble && <span className="roll-log-badge roll-log-badge-fumble">FUMBLE</span>}
       </div>
     </div>
   );
@@ -166,6 +155,7 @@ export default function DicePanel({ isGM, onClose, rolls, onClearLog }) {
     const rollerColor = isGM ? GM_COLOR : color;
     if (!isGM) localStorage.setItem('mb-dice-id', JSON.stringify({ name: rollerName, color }));
     socket.emit('dice:roll', { dice, rollerName, rollerColor });
+    trackDiceRolled();
     setRolling(true);
     setTimeout(() => setRolling(false), 1500);
   };

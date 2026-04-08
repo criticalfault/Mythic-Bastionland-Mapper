@@ -89,7 +89,7 @@ async function listGameStates(uid) {
 
 function generateInviteCode() {
   // 6 chars, uppercase, no confusing characters (0/O, 1/I/L)
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0,O,1,I,L
   let code = '';
   for (let i = 0; i < 6; i++) {
     code += chars[Math.floor(Math.random() * chars.length)];
@@ -97,13 +97,17 @@ function generateInviteCode() {
   return code;
 }
 
-async function createRoom(gmUid, gmName, realmName) {
+async function createRoom(gmUid, gmName, realmName, password) {
   const inviteCode = generateInviteCode();
+  const passwordHash = password
+    ? require('crypto').createHash('sha256').update(String(password)).digest('hex')
+    : '';
   const data = {
     gmUid,
     gmName,
     realmName: realmName || 'New Realm',
     inviteCode,
+    passwordHash,
     createdAt: Date.now(),
     lastActiveAt: Date.now(),
     // lastState is written separately by autoSaveRoomState
@@ -111,11 +115,11 @@ async function createRoom(gmUid, gmName, realmName) {
 
   if (USE_FIRESTORE) {
     const ref = await db.collection(ROOMS_COLLECTION).add(data);
-    return { roomId: ref.id, inviteCode, realmName: data.realmName };
+    return { roomId: ref.id, inviteCode, realmName: data.realmName, passwordHash };
   } else {
     // Fallback: return an in-memory room ID
     const roomId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    return { roomId, inviteCode, realmName: data.realmName };
+    return { roomId, inviteCode, realmName: data.realmName, passwordHash };
   }
 }
 
@@ -149,6 +153,7 @@ async function getGMRooms(gmUid) {
       inviteCode: d.data().inviteCode,
       createdAt: d.data().createdAt,
       lastActiveAt: d.data().lastActiveAt,
+      hasPassword: !!d.data().passwordHash,
     }))
     .sort((a, b) => (b.lastActiveAt || 0) - (a.lastActiveAt || 0));
 }
