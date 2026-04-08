@@ -7,7 +7,6 @@ import HexMap from './components/HexMap.jsx';
 import GMToolbar from './components/GMToolbar.jsx';
 import PingOverlay from './components/PingOverlay.jsx';
 import DicePanel from './components/DicePanel.jsx';
-import DiceResults from './components/DiceResults.jsx';
 import Lobby from './components/Lobby.jsx';
 
 export default function App() {
@@ -199,7 +198,7 @@ export default function App() {
     });
 
     s.on('dice:rolled', (roll) => {
-      setDiceRolls(prev => [...prev.slice(-4), roll]);
+      setDiceRolls(prev => [...prev.slice(-49), roll]);
     });
 
     s.on('map:renamed', ({ name }) => {
@@ -272,9 +271,7 @@ export default function App() {
     socket.emit('ping', { q, r });
   }, []);
 
-  const handleRemoveRoll = useCallback((id) => {
-    setDiceRolls(prev => prev.filter(r => r.id !== id));
-  }, []);
+  const handleClearLog = useCallback(() => setDiceRolls([]), []);
 
   const handleLeaveRoom = () => {
     setCurrentRoom(null);
@@ -430,8 +427,7 @@ export default function App() {
         </div>
       </div>
 
-      {diceOpen && <DicePanel isGM={isGM} onClose={() => setDiceOpen(false)} />}
-      <DiceResults rolls={diceRolls} onRemove={handleRemoveRoll} />
+      {diceOpen && <DicePanel isGM={isGM} onClose={() => setDiceOpen(false)} rolls={diceRolls} onClearLog={handleClearLog} />}
 
       {notification && (
         <div className="notification">{notification}</div>

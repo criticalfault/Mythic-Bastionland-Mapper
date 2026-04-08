@@ -515,7 +515,7 @@ body {
   position: fixed;
   top: var(--header-h);
   right: 0;
-  width: 260px;
+  width: 280px;
   height: calc(100vh - var(--header-h));
   background: var(--surface);
   border-left: 1px solid var(--border);
@@ -523,7 +523,7 @@ body {
   flex-direction: column;
   gap: 0;
   z-index: 50;
-  overflow-y: auto;
+  overflow: hidden; /* log section scrolls internally */
 }
 
 .dice-panel-head {
@@ -723,6 +723,154 @@ body {
   0%   { transform: scale(1.15); }
   60%  { transform: scale(0.96); }
   100% { transform: scale(1); }
+}
+
+/* ── DICE PANEL — ROLLER + LOG ── */
+.dice-roller-section {
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.dice-clear-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.15s, border-color 0.15s;
+}
+.dice-clear-btn:hover {
+  color: var(--red);
+  border-color: var(--red);
+}
+
+.dice-log-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.dice-log {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 4px 0;
+}
+.dice-log::-webkit-scrollbar { width: 4px; }
+.dice-log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.dice-log-empty {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 13px;
+  text-align: center;
+  padding: 16px 10px;
+}
+
+/* Individual log entry */
+.roll-log-entry {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  transition: background 0.1s;
+}
+.roll-log-entry:hover { background: rgba(255,255,255,0.02); }
+.roll-log-newest {
+  background: rgba(200, 181, 96, 0.05);
+  border-left: 2px solid var(--accent);
+}
+
+.roll-log-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.roll-log-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.roll-log-name {
+  font-family: 'Cinzel', serif;
+  font-size: 12px;
+  font-weight: 600;
+}
+.roll-log-summary {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.roll-log-time {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.roll-log-dice-animated {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+.roll-log-dice-static {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 5px;
+}
+
+/* Static die face (smaller, no label) */
+.die-face-static {
+  opacity: 0.9;
+}
+.die-face-static:hover { opacity: 1; }
+
+.roll-log-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.roll-log-total {
+  color: var(--text-muted);
+}
+.roll-log-total strong {
+  color: var(--text);
+  font-size: 14px;
+}
+.roll-log-badge {
+  font-size: 10px;
+  font-family: 'Cinzel', serif;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.roll-log-badge-max {
+  background: rgba(255, 215, 0, 0.15);
+  color: #ffd700;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+}
+.roll-log-badge-fumble {
+  background: rgba(255, 85, 85, 0.15);
+  color: #ff5555;
+  border: 1px solid rgba(255, 85, 85, 0.3);
 }
 
 /* ── LOGIN SCREEN ── */
