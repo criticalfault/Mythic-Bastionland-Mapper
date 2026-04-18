@@ -873,7 +873,287 @@ body {
   border: 1px solid rgba(255, 85, 85, 0.3);
 }
 
-/* ── LOGIN SCREEN ── */
+/* ── LANDING PAGE ── */
+.landing {
+  min-height: 100vh;
+  overflow-y: auto;
+  /* Override the body overflow:hidden set for the game UI */
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Crimson Text', Georgia, serif;
+  overflow-y: scroll;
+}
+
+/* Hero */
+.landing-hero {
+  background: radial-gradient(ellipse at 50% 0%, #1e1a38 0%, var(--bg) 70%);
+  border-bottom: 1px solid var(--border);
+  padding: 5rem 1.5rem 4rem;
+  text-align: center;
+}
+.landing-hero-inner {
+  max-width: 680px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.2rem;
+}
+.landing-knight {
+  font-size: 4rem;
+  line-height: 1;
+  color: var(--accent);
+  text-shadow: 0 0 40px rgba(200, 181, 96, 0.4);
+  font-family: serif;
+}
+.landing-title {
+  font-family: 'Cinzel', serif;
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1.15;
+  text-shadow: 0 2px 20px rgba(200, 181, 96, 0.2);
+}
+.landing-title-sub {
+  font-size: 0.65em;
+  font-weight: 400;
+  color: var(--text-muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.landing-tagline {
+  font-size: 1.2rem;
+  color: var(--text);
+  line-height: 1.6;
+  font-style: italic;
+}
+.landing-tagline a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.landing-tagline a:hover { text-decoration: underline; }
+.landing-cta {
+  font-size: 1.05rem !important;
+  padding: 12px 28px !important;
+}
+.landing-free-note {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: -0.4rem;
+}
+
+/* Shared section layout */
+.landing-section {
+  padding: 4rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.landing-section-dark {
+  background: var(--surface);
+}
+.landing-cta-section {
+  background: radial-gradient(ellipse at 50% 100%, #1e1a38 0%, var(--bg) 70%);
+}
+.landing-section-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.landing-section-narrow {
+  max-width: 700px;
+}
+.landing-section-title {
+  font-family: 'Cinzel', serif;
+  font-size: 1.6rem;
+  color: var(--accent);
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+.landing-body {
+  font-size: 1.1rem;
+  line-height: 1.75;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+.landing-body a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.landing-body a:hover { text-decoration: underline; }
+.landing-body strong { color: var(--accent); font-weight: 600; }
+
+/* Screenshot placeholders */
+.landing-screenshot-section {
+  padding: 3rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.landing-screenshot-placeholder {
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  padding: 3rem 2rem;
+  text-align: center;
+  color: var(--text-muted);
+  background: var(--surface2);
+  flex: 1;
+}
+.landing-screenshot-icon {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+.landing-screenshot-hint {
+  font-size: 0.8rem;
+  margin-top: 0.4rem;
+  opacity: 0.6;
+}
+.landing-screenshot-hint code {
+  background: var(--surface3);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.85em;
+}
+.landing-screenshot-img {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+}
+.landing-two-screenshots {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+@media (max-width: 640px) {
+  .landing-two-screenshots { grid-template-columns: 1fr; }
+}
+.landing-figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.landing-figure figcaption {
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Features grid */
+.landing-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1.25rem;
+  margin-top: 0.5rem;
+}
+.landing-feature {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.4rem 1.2rem;
+  transition: border-color 0.2s, transform 0.15s;
+}
+.landing-feature:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+.landing-feature-icon {
+  font-size: 1.8rem;
+  margin-bottom: 0.6rem;
+  line-height: 1;
+}
+.landing-feature h3 {
+  font-family: 'Cinzel', serif;
+  font-size: 0.95rem;
+  color: var(--accent);
+  margin-bottom: 0.4rem;
+  letter-spacing: 0.03em;
+}
+.landing-feature p {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+/* How it works */
+.landing-how {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 2rem;
+  align-items: start;
+  max-width: 880px;
+  margin: 0 auto;
+}
+@media (max-width: 640px) {
+  .landing-how { grid-template-columns: 1fr; }
+  .landing-how-divider { display: none; }
+}
+.landing-how-divider {
+  width: 1px;
+  background: var(--border);
+  align-self: stretch;
+}
+.landing-how-role {
+  font-family: 'Cinzel', serif;
+  font-size: 1rem;
+  color: var(--accent);
+  margin-bottom: 1rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.landing-steps {
+  list-style: none;
+  counter-reset: steps;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0;
+}
+.landing-steps li {
+  counter-increment: steps;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--text);
+}
+.landing-steps li::before {
+  content: counter(steps);
+  flex-shrink: 0;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: var(--surface3);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-family: 'Cinzel', serif;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.1rem;
+}
+.landing-steps strong { color: var(--accent); font-weight: 600; }
+
+/* Footer */
+.landing-footer {
+  padding: 2rem 1.5rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+}
+.landing-footer a {
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.landing-footer a:hover { color: var(--accent); }
+
+/* ── LOGIN SCREEN (kept for fallback) ── */
 .login-screen {
   display: flex;
   align-items: center;

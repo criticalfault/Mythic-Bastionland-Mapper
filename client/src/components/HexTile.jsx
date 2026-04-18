@@ -13,7 +13,16 @@ function pointsAttr(corners) {
   return corners.map(([x, y]) => `${x},${y}`).join(' ');
 }
 
-export default function HexTile({ hex, cx, cy, size, isGM, mode, onClick, onRightClick }) {
+// Tiles whose source images don't fill the hex well with "slice".
+// 'meet'  → shrink to fit inside the hex (whole image visible, dark gaps filled by hex base)
+// 'slice' → default, fill and crop (good for landscapes/textures)
+const TERRAIN_ASPECT = {
+  tower:    'xMidYMid meet',
+  town:     'xMidYMid meet',
+  fortress: 'xMidYMid meet',
+};
+
+export default function HexTile({ hex, cx, cy, size, isGM, mode, selectedSpecialTile, onClick, onRightClick }) {
   const corners = hexCorners(cx, cy, size);
   const points = pointsAttr(corners);
   const clipId = `clip-${hex.q}-${hex.r}`;
@@ -29,6 +38,9 @@ export default function HexTile({ hex, cx, cy, size, isGM, mode, onClick, onRigh
   const specialUrl = hex.specialTile ? specialTileUrls[hex.specialTile] || null : null;
   const showSpecial = specialUrl && (isGM || isSpecialRevealed);
 
+  // Per-tile aspect ratio override, default to slice (fill + crop)
+  const terrainAspect = TERRAIN_ASPECT[hex.terrain] || 'xMidYMid slice';
+
   // Image bounding box (fits tightly around flat-top hex)
   const imgW = size * 2;
   const imgH = size * Math.sqrt(3);
@@ -39,8 +51,16 @@ export default function HexTile({ hex, cx, cy, size, isGM, mode, onClick, onRigh
   const handleRightClick = (e) => { e.preventDefault(); onRightClick(hex); };
 
   let cursor = 'default';
-  if (isGM) cursor = mode === 'build' ? 'crosshair' : 'pointer';
-  else cursor = 'pointer';
+  if (isGM) {
+    if (mode === 'build') {
+      // Special tile selected → right-click mode only; signal left-click is inactive
+      cursor = selectedSpecialTile !== null ? 'context-menu' : 'crosshair';
+    } else {
+      cursor = 'pointer';
+    }
+  } else {
+    cursor = 'pointer';
+  }
 
   return (
     <g className="hex-tile" onClick={handleClick} onContextMenu={handleRightClick} style={{ cursor }}>
@@ -59,7 +79,7 @@ export default function HexTile({ hex, cx, cy, size, isGM, mode, onClick, onRigh
           href={terrainUrl}
           x={imgX} y={imgY} width={imgW} height={imgH}
           clipPath={`url(#${clipId})`}
-          preserveAspectRatio="xMidYMid slice"
+          preserveAspectRatio={terrainAspect}
         />
       )}
 
@@ -87,26 +107,6 @@ export default function HexTile({ hex, cx, cy, size, isGM, mode, onClick, onRigh
         <polygon points={points} fill="#000" opacity="0.45" stroke="none" />
       )}
 
-      {/* Special tile pending-reveal indicator (GM only, dim star) */}
-      {isGM && specialUrl && !isSpecialRevealed && (
-        <text
-          x={cx} y={cy - size * 0.32}
-          textAnchor="middle" dominantBaseline="middle"
-          fontSize={size * 0.26} fill="#aaa"
-          style={{ pointerEvents: 'none', userSelect: 'none' }}
-        >✦</text>
-      )}
-
-      {/* Special tile revealed badge */}
-      {isSpecialRevealed && specialUrl && (
-        <text
-          x={cx} y={cy - size * 0.32}
-          textAnchor="middle" dominantBaseline="middle"
-          fontSize={size * 0.26} fill="#ffd700"
-          stroke="#000" strokeWidth="0.5" paintOrder="stroke"
-          style={{ pointerEvents: 'none', userSelect: 'none' }}
-        >★</text>
-      )}
 
       {/* Hex label */}
       {!showFog && hex.label && (

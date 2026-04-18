@@ -37,7 +37,7 @@ const PAD = HEX_SIZE;
 
 export default function HexMap({
   map, players, partyMarker, pings,
-  isGM, mode,
+  isGM, mode, selectedSpecialTile,
   onHexClick, onHexRightClick,
   onPlayerMove, onPartyMove, onPlayerPing,
 }) {
@@ -241,6 +241,7 @@ export default function HexMap({
             size={HEX_SIZE}
             isGM={isGM}
             mode={mode}
+            selectedSpecialTile={selectedSpecialTile}
             onClick={handleHexClick}
             onRightClick={handleHexRightClick}
           />
