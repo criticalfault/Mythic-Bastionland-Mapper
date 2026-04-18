@@ -88,32 +88,47 @@ export default function GMToolbar({
         {tab === 'terrain' && (
           <div className="terrain-panel">
             {mode === 'build' ? (
-              <p className="panel-hint">Left-click / drag to paint. Right-click to assign special.</p>
+              <>
+                <p className="panel-hint">Left-click / drag to paint. Right-click to assign special.</p>
+                <div className="tile-image-grid">
+                  {terrainNames.map(name => (
+                    <button
+                      key={name}
+                      className={`tile-image-btn ${selectedTerrain === name ? 'selected' : ''}`}
+                      onClick={() => onTerrainSelect(name)}
+                      title={capitalize(name)}
+                    >
+                      {regularTileUrls[name] ? (
+                        <img src={regularTileUrls[name]} alt={name} />
+                      ) : (
+                        <span className="tile-empty-swatch" />
+                      )}
+                      <span className="tile-image-label">{capitalize(name)}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="toolbar-section" style={{ marginTop: 8 }}>
+                  <button className="btn-secondary full-width" onClick={() => setShowMapDialog(true)}>
+                    + New Map
+                  </button>
+                </div>
+              </>
             ) : (
-              <p className="panel-hint"><strong>Play Mode:</strong> Left-click reveals hex. Right-click reveals special.</p>
-            )}
-            <div className="tile-image-grid">
-              {terrainNames.map(name => (
+              <>
+                <p className="panel-hint"><strong>Play Mode:</strong> Left-click reveals hex. Right-click reveals special.</p>
                 <button
-                  key={name}
-                  className={`tile-image-btn ${selectedTerrain === name ? 'selected' : ''}`}
-                  onClick={() => onTerrainSelect(name)}
-                  title={capitalize(name)}
+                  className="btn-secondary full-width"
+                  style={{ marginBottom: 8 }}
+                  onClick={() => {
+                    if (confirm('Reveal all hexes to players? Special tiles are not affected.')) {
+                      socket.emit('map:revealAll');
+                    }
+                  }}
                 >
-                  {regularTileUrls[name] ? (
-                    <img src={regularTileUrls[name]} alt={name} />
-                  ) : (
-                    <span className="tile-empty-swatch" />
-                  )}
-                  <span className="tile-image-label">{capitalize(name)}</span>
+                  👁 Reveal All Hexes
                 </button>
-              ))}
-            </div>
-            <div className="toolbar-section" style={{ marginTop: 8 }}>
-              <button className="btn-secondary full-width" onClick={() => setShowMapDialog(true)}>
-                + New Map
-              </button>
-            </div>
+              </>
+            )}
           </div>
         )}
 
@@ -121,32 +136,34 @@ export default function GMToolbar({
         {tab === 'special' && (
           <div className="terrain-panel">
             {mode === 'build' ? (
-              <p className="panel-hint">Select a special, then right-click any hex to apply it. Select None to erase.</p>
+              <>
+                <p className="panel-hint">Select a special, then right-click any hex to apply it. Select None to erase.</p>
+                <div className="tile-image-grid">
+                  {/* None/eraser option */}
+                  <button
+                    className={`tile-image-btn ${selectedSpecialTile === null ? 'selected' : ''}`}
+                    onClick={() => onSpecialTileSelect(null)}
+                    title="None (erase special)"
+                  >
+                    <span className="tile-empty-swatch" style={{ fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' }}>✕</span>
+                    <span className="tile-image-label">None</span>
+                  </button>
+                  {SPECIAL_TILE_NAMES.map(name => (
+                    <button
+                      key={name}
+                      className={`tile-image-btn ${selectedSpecialTile === name ? 'selected' : ''}`}
+                      onClick={() => onSpecialTileSelect(name)}
+                      title={capitalize(name)}
+                    >
+                      <img src={specialTileUrls[name]} alt={name} />
+                      <span className="tile-image-label">{capitalize(name)}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
             ) : (
-              <p className="panel-hint">Right-click a hex in Play Mode to reveal/hide its special to players.</p>
+              <p className="panel-hint">Right-click a hex to reveal/hide its special to players.</p>
             )}
-            <div className="tile-image-grid">
-              {/* None/eraser option */}
-              <button
-                className={`tile-image-btn ${selectedSpecialTile === null ? 'selected' : ''}`}
-                onClick={() => onSpecialTileSelect(null)}
-                title="None (erase special)"
-              >
-                <span className="tile-empty-swatch" style={{ fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#666' }}>✕</span>
-                <span className="tile-image-label">None</span>
-              </button>
-              {SPECIAL_TILE_NAMES.map(name => (
-                <button
-                  key={name}
-                  className={`tile-image-btn ${selectedSpecialTile === name ? 'selected' : ''}`}
-                  onClick={() => onSpecialTileSelect(name)}
-                  title={capitalize(name)}
-                >
-                  <img src={specialTileUrls[name]} alt={name} />
-                  <span className="tile-image-label">{capitalize(name)}</span>
-                </button>
-              ))}
-            </div>
           </div>
         )}
 

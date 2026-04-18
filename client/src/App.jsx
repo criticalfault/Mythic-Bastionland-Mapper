@@ -129,6 +129,15 @@ export default function App() {
       });
     });
 
+    s.on('map:revealAll', ({ hexes }) => {
+      setGameState(prev => {
+        if (!prev) return prev;
+        const next = structuredClone(prev);
+        next.map.hexes = hexes;
+        return next;
+      });
+    });
+
     s.on('tile:revealSpecial', ({ key, specialRevealed, special }) => {
       setGameState(prev => {
         if (!prev) return prev;

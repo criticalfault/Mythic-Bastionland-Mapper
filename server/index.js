@@ -298,6 +298,14 @@ io.on('connection', (socket) => {
     scheduleAutoSave(roomId());
   });
 
+  socket.on('map:revealAll', () => {
+    if (!isGMSocket()) return;
+    const g = gs(); if (!g) return;
+    g.revealAll();
+    broadcastRoom('map:revealAll', { hexes: g.getState().map.hexes });
+    scheduleAutoSave(roomId());
+  });
+
   socket.on('tile:revealSpecial', ({ key }) => {
     if (!isGMSocket()) return;
     const g = gs(); if (!g) return;

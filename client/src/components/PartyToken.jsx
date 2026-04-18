@@ -59,8 +59,11 @@ export default function PartyToken({ cx, cy, size, isGM, onMove, hexLayout }) {
   return (
     <g
       className="party-token"
-      transform={`translate(${px}, ${py})`}
-      style={{ cursor: isGM ? 'grab' : 'default' }}
+      style={{
+        transform: `translate(${px}px, ${py}px)`,
+        transition: dragging ? 'none' : 'transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        cursor: isGM ? 'grab' : 'default',
+      }}
       onMouseDown={handleMouseDown}
     >
       {/* Outer glow ring */}

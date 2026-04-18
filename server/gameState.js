@@ -129,6 +129,12 @@ class GameState {
     return true;
   }
 
+  revealAll() {
+    for (const hex of Object.values(this.state.map.hexes)) {
+      hex.revealed = true;
+    }
+  }
+
   toggleSpecialReveal(key) {
     if (!this.state.map.hexes[key]) return false;
     this.state.map.hexes[key].specialRevealed = !this.state.map.hexes[key].specialRevealed;

@@ -70,7 +70,7 @@ export default function HexTile({ hex, cx, cy, size, isGM, mode, onClick, onRigh
           x={imgX} y={imgY} width={imgW} height={imgH}
           clipPath={`url(#${clipId})`}
           preserveAspectRatio="xMidYMid slice"
-          opacity={isSpecialRevealed || isGM ? 0.72 : 0.45}
+          opacity={isSpecialRevealed ? 1 : 0.72}
         />
       )}
 
