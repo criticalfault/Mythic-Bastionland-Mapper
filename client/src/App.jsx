@@ -53,7 +53,8 @@ export default function App() {
   const [chatMessages, setChatMessages] = useState([]);
   const [myCharStats, setMyCharStats] = useState(null);
   const [myCharLocked, setMyCharLocked] = useState(false);
-  const [characters, setCharacters] = useState({}); // uid → { displayName, stats, locked }
+  const [myCharName, setMyCharName] = useState('');
+  const [characters, setCharacters] = useState({}); // uid → { displayName, characterName, stats, locked }
 
   const notify = useCallback((msg) => {
     setNotification(msg);
@@ -106,6 +107,7 @@ export default function App() {
     const myChar = myUid ? state.characters?.[myUid] : null;
     setMyCharStats(myChar?.stats || null);
     setMyCharLocked(myChar?.locked || false);
+    setMyCharName(myChar?.characterName || '');
     setCharacters(state.characters || {});
     // Update URL to include room code for easy sharing
     const url = new URL(window.location.href);
@@ -257,12 +259,13 @@ export default function App() {
       });
     });
 
-    s.on('charSheet:updated', ({ uid: updUid, displayName, stats, locked }) => {
+    s.on('charSheet:updated', ({ uid: updUid, displayName, characterName, stats, locked }) => {
       if (updUid === auth.currentUser?.uid) {
         setMyCharStats(stats);
         setMyCharLocked(locked ?? false);
+        setMyCharName(characterName ?? '');
       }
-      setCharacters(prev => ({ ...prev, [updUid]: { displayName, stats, locked: locked ?? false } }));
+      setCharacters(prev => ({ ...prev, [updUid]: { displayName, characterName: characterName ?? '', stats, locked: locked ?? false } }));
     });
 
     s.on('map:saved', ({ name }) => notify(`Map "${name}" saved.`));
@@ -515,7 +518,7 @@ export default function App() {
 
       <ChatPanel authUser={authUser} isGM={isGM} initialMessages={chatMessages} />
       {!isGM && authUser && (
-        <StatsPanel authUser={authUser} initialStats={myCharStats} initialLocked={myCharLocked} />
+        <StatsPanel authUser={authUser} initialStats={myCharStats} initialLocked={myCharLocked} initialCharacterName={myCharName} />
       )}
 
       {notification && (

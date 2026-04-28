@@ -221,10 +221,10 @@ export default function GMToolbar({
             {Object.keys(characters).length === 0 ? (
               <p className="empty-hint">No character sheets submitted yet.</p>
             ) : (
-              Object.entries(characters).map(([uid, { displayName, stats, locked }]) => (
+              Object.entries(characters).map(([uid, { displayName, characterName, stats, locked }]) => (
                 <div key={uid} className="party-char-card">
                   <div className="party-char-header">
-                    <span className="party-char-name">{displayName}</span>
+                    <span className="party-char-name">{characterName || displayName}</span>
                     {locked && <span className="party-locked-badge" title="Character submitted">🔒</span>}
                   </div>
                   {GM_STATS.map(({ key, label, color, track }) => {

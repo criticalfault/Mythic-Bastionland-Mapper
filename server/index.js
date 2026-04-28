@@ -565,7 +565,7 @@ io.on('connection', (socket) => {
     if (!isGMSocket()) return;
     const g = gs(); if (!g) return;
     const existing = g.getState().characters[targetUid];
-    if (!existing) return; // only update characters that already exist
+    if (!existing) return;
     const clean = {};
     for (const key of ['vigor', 'clarity', 'spirit', 'guard']) {
       const s = stats?.[key];
@@ -575,20 +575,28 @@ io.on('connection', (socket) => {
         max:     Math.max(1, Math.min(20, parseInt(s.max)     || 1)),
       };
     }
-    // GM cannot change locked status; preserve it
-    g.updateCharacter(targetUid, existing.displayName, clean, existing.locked);
-    broadcastRoom('charSheet:updated', { uid: targetUid, displayName: existing.displayName, stats: clean, locked: existing.locked });
+    // GM preserves locked status and characterName
+    g.updateCharacter(targetUid, existing.displayName, clean, existing.locked, existing.characterName);
+    broadcastRoom('charSheet:updated', { uid: targetUid, displayName: existing.displayName, characterName: existing.characterName || '', stats: clean, locked: existing.locked });
     scheduleAutoSave(roomId());
   });
 
-  socket.on('charSheet:update', async ({ stats }) => {
+  socket.on('charSheet:update', async ({ stats, characterName }) => {
     await authReady;
     if (!uid) return;
     const g = gs(); if (!g) return;
     const existing = g.getState().characters[uid];
-    // If already locked, reject stat changes (but allow the lock itself)
-    if (existing?.locked) return;
-    // Validate stats shape before storing
+    // If locked, only allow characterName updates (not stat changes)
+    const safeName = typeof characterName === 'string' ? characterName.trim().slice(0, 40) : undefined;
+    if (existing?.locked) {
+      // Still allow name changes even when locked
+      if (safeName !== undefined && safeName !== existing.characterName) {
+        g.updateCharacter(uid, displayName, existing.stats, true, safeName);
+        broadcastRoom('charSheet:updated', { uid, displayName, characterName: safeName, stats: existing.stats, locked: true });
+        scheduleAutoSave(roomId());
+      }
+      return;
+    }
     const clean = {};
     for (const key of ['vigor', 'clarity', 'spirit', 'guard']) {
       const s = stats?.[key];
@@ -598,8 +606,10 @@ io.on('connection', (socket) => {
         max:     Math.max(1, Math.min(20, parseInt(s.max)     || 1)),
       };
     }
-    g.updateCharacter(uid, displayName, clean, false);
-    broadcastRoom('charSheet:updated', { uid, displayName, stats: clean, locked: false });
+    const prevName = existing?.characterName || '';
+    const nextName = safeName !== undefined ? safeName : prevName;
+    g.updateCharacter(uid, displayName, clean, false, nextName);
+    broadcastRoom('charSheet:updated', { uid, displayName, characterName: nextName, stats: clean, locked: false });
     scheduleAutoSave(roomId());
   });
 
@@ -608,10 +618,10 @@ io.on('connection', (socket) => {
     if (!uid) return;
     const g = gs(); if (!g) return;
     const existing = g.getState().characters[uid];
-    if (!existing) return; // must have submitted stats first
-    if (existing.locked) return; // already locked
+    if (!existing) return;
+    if (existing.locked) return;
     g.lockCharacter(uid);
-    broadcastRoom('charSheet:updated', { uid, displayName: existing.displayName, stats: existing.stats, locked: true });
+    broadcastRoom('charSheet:updated', { uid, displayName: existing.displayName, characterName: existing.characterName || '', stats: existing.stats, locked: true });
     scheduleAutoSave(roomId());
   });
 

@@ -26,14 +26,16 @@ function clamp(v, min, max) {
   return Math.max(min, Math.min(max, v));
 }
 
-export default function StatsPanel({ authUser, initialStats, initialLocked }) {
-  const [open, setOpen]             = useState(false);
-  const [stats, setStats]           = useState(() => initialStats ?? DEFAULT_STATS);
-  const [locked, setLocked]         = useState(() => initialLocked ?? false);
-  const [editingMax, setEditingMax] = useState(null); // key of stat whose max is being edited
-  const emitTimeout                 = useRef(null);
+export default function StatsPanel({ authUser, initialStats, initialLocked, initialCharacterName }) {
+  const [open, setOpen]               = useState(false);
+  const [stats, setStats]             = useState(() => initialStats ?? DEFAULT_STATS);
+  const [locked, setLocked]           = useState(() => initialLocked ?? false);
+  const [characterName, setCharacterName] = useState(() => initialCharacterName ?? '');
+  const [editingMax, setEditingMax]   = useState(null);
+  const emitTimeout                   = useRef(null);
+  const nameTimeout                   = useRef(null);
 
-  // Sync when server sends saved stats back (e.g. on rejoin)
+  // Sync when server sends saved data back (e.g. on rejoin)
   useEffect(() => {
     if (initialStats) setStats(initialStats);
   }, [initialStats]);
@@ -42,12 +44,29 @@ export default function StatsPanel({ authUser, initialStats, initialLocked }) {
     setLocked(initialLocked ?? false);
   }, [initialLocked]);
 
+  useEffect(() => {
+    setCharacterName(initialCharacterName ?? '');
+  }, [initialCharacterName]);
+
   // Debounced emit — batch rapid +/− clicks into one socket message
-  const emitStats = (next) => {
+  const emitStats = (nextStats, name) => {
     clearTimeout(emitTimeout.current);
     emitTimeout.current = setTimeout(() => {
-      socket.emit('charSheet:update', { stats: next });
+      socket.emit('charSheet:update', { stats: nextStats, characterName: name ?? characterName });
     }, 300);
+  };
+
+  const emitName = (name) => {
+    clearTimeout(nameTimeout.current);
+    nameTimeout.current = setTimeout(() => {
+      socket.emit('charSheet:update', { stats, characterName: name });
+    }, 400);
+  };
+
+  const handleNameChange = (e) => {
+    const val = e.target.value;
+    setCharacterName(val);
+    emitName(val);
   };
 
   const adjustCurrent = (key, delta) => {
@@ -88,7 +107,7 @@ export default function StatsPanel({ authUser, initialStats, initialLocked }) {
     // Set current = max on a fresh roll
     Object.keys(next).forEach(k => { next[k].current = next[k].max; });
     setStats(next);
-    socket.emit('charSheet:update', { stats: next });
+    socket.emit('charSheet:update', { stats: next, characterName });
   };
 
   const handleSubmit = () => {
@@ -140,7 +159,17 @@ export default function StatsPanel({ authUser, initialStats, initialLocked }) {
         <div className="stats-body">
 
           <div className="stats-top-row">
-            <span className="stats-player-name">{authUser.displayName}</span>
+            <div className="stats-name-wrap">
+              <input
+                className="stats-player-name-input"
+                value={characterName}
+                onChange={handleNameChange}
+                placeholder={authUser.displayName}
+                maxLength={40}
+                aria-label="Character name"
+              />
+              <span className="stats-name-edit-icon" aria-hidden="true">✎</span>
+            </div>
             {locked ? (
               <span className="stats-locked-badge">⚔ Character Submitted</span>
             ) : (

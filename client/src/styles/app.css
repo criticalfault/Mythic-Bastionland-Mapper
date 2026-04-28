@@ -1081,11 +1081,49 @@ body {
   padding-bottom: 0.4rem;
   border-bottom: 1px solid var(--border);
 }
-.stats-player-name {
+.stats-name-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.stats-player-name-input {
   font-family: 'Cinzel', serif;
   font-size: 0.85rem;
   color: var(--accent);
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
+  background: transparent;
+  border: none;
+  border-bottom: 1px dashed rgba(200,181,96,0.35);
+  padding: 1px 2px;
+  min-width: 60px;
+  max-width: 180px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+.stats-player-name-input::placeholder {
+  color: rgba(200,181,96,0.45);
+  font-style: italic;
+}
+.stats-player-name-input:hover {
+  border-bottom-color: var(--accent);
+}
+.stats-player-name-input:focus {
+  border-bottom-color: var(--accent);
+  background: rgba(200,181,96,0.06);
+  border-radius: 3px 3px 0 0;
+}
+.stats-name-edit-icon {
+  font-size: 0.75rem;
+  color: rgba(200,181,96,0.4);
+  pointer-events: none;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.stats-name-wrap:focus-within .stats-name-edit-icon,
+.stats-name-wrap:hover .stats-name-edit-icon {
+  color: var(--accent);
 }
 .stats-roll-btn {
   background: var(--surface2);
@@ -1177,7 +1215,7 @@ body {
 .stat-max {
   background: none;
   border: none;
-  border-bottom: 1px dashed var(--border);
+  border-bottom: 1px dashed rgba(136,128,160,0.6);
   color: var(--text-muted);
   font-family: 'Crimson Text', serif;
   font-size: 0.95rem;

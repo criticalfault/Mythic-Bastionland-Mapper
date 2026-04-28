@@ -167,12 +167,12 @@ class GameState {
     return true;
   }
 
-  updateCharacter(uid, displayName, stats, locked) {
+  updateCharacter(uid, displayName, stats, locked, characterName) {
     const prev = this.state.characters[uid] || {};
     this.state.characters[uid] = {
       displayName,
+      characterName: characterName !== undefined ? characterName : (prev.characterName || ''),
       stats,
-      // Once locked, it stays locked; caller passes explicit boolean or preserves previous
       locked: locked !== undefined ? locked : (prev.locked || false),
     };
   }
