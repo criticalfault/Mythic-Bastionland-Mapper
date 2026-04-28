@@ -637,10 +637,11 @@ io.on('connection', (socket) => {
 
   // ── PING (available to all in room) ──
 
-  socket.on('ping', ({ q, r }) => {
+  socket.on('ping', ({ q, r, color }) => {
     const rid = roomId();
     if (!rid) return;
-    io.to(rid).emit('ping', { q, r, socketId: socket.id });
+    const safeColor = /^#[0-9a-fA-F]{6}$/.test(String(color)) ? color : '#f59e0b';
+    io.to(rid).emit('ping', { q, r, socketId: socket.id, color: safeColor });
   });
 
   // ── DISCONNECT ──

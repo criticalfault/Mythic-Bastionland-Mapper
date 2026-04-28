@@ -6,8 +6,11 @@ export default function ChatPanel({ authUser, isGM, initialMessages = [] }) {
   const [text, setText] = useState('');
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState(null); // null = CSS default (bottom-right)
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+  const panelRef = useRef(null);
+  const dragRef = useRef(null); // { startMX, startMY, startPX, startPY }
 
   useEffect(() => {
     socket.on('chat:message', (msg) => {
@@ -29,6 +32,37 @@ export default function ChatPanel({ authUser, isGM, initialMessages = [] }) {
     if (open) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, open]);
 
+  // ── Drag ──────────────────────────────────────────────────────────────────
+  const onHeaderMouseDown = (e) => {
+    if (e.button !== 0) return; // left-click only
+    const panel = panelRef.current;
+    if (!panel) return;
+    const rect = panel.getBoundingClientRect();
+    dragRef.current = { startMX: e.clientX, startMY: e.clientY, startPX: rect.left, startPY: rect.top };
+    e.preventDefault(); // stop text selection
+
+    const onMove = (e) => {
+      const { startMX, startMY, startPX, startPY } = dragRef.current;
+      const newX = startPX + (e.clientX - startMX);
+      const newY = startPY + (e.clientY - startMY);
+      const w = panel.offsetWidth;
+      const h = panel.offsetHeight;
+      setPos({
+        x: Math.max(0, Math.min(window.innerWidth  - w, newX)),
+        y: Math.max(0, Math.min(window.innerHeight - h, newY)),
+      });
+    };
+
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      dragRef.current = null;
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
   const handleSend = () => {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -37,6 +71,10 @@ export default function ChatPanel({ authUser, isGM, initialMessages = [] }) {
   };
 
   const formatTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const panelStyle = pos
+    ? { left: pos.x, top: pos.y, bottom: 'auto', right: 'auto' }
+    : {};
 
   return (
     <>
@@ -52,10 +90,18 @@ export default function ChatPanel({ authUser, isGM, initialMessages = [] }) {
 
       {/* Chat panel */}
       {open && (
-        <div className="chat-panel">
-          <div className="chat-panel-head">
+        <div className="chat-panel" style={panelStyle} ref={panelRef}>
+          <div
+            className="chat-panel-head"
+            onMouseDown={onHeaderMouseDown}
+            style={{ cursor: 'grab' }}
+          >
             <span className="chat-panel-title">💬 Chat</span>
-            <button className="dice-close" onClick={() => setOpen(false)}>✕</button>
+            <button
+              className="dice-close"
+              onMouseDown={e => e.stopPropagation()} // don't start drag on close click
+              onClick={() => setOpen(false)}
+            >✕</button>
           </div>
 
           <div className="chat-messages">

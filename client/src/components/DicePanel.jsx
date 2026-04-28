@@ -14,10 +14,6 @@ const DIE_PATH = {
   20: 'M50,4 L95,27 L95,73 L50,96 L5,73 L5,27 Z',
 };
 
-function getIdentity() {
-  try { return JSON.parse(localStorage.getItem('mb-dice-id') || '{}'); } catch { return {}; }
-}
-
 function formatTime(ts) {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
@@ -133,11 +129,8 @@ function RollLogEntry({ roll, isNewest }) {
   );
 }
 
-export default function DicePanel({ isGM, onClose, rolls, onClearLog }) {
-  const stored = getIdentity();
+export default function DicePanel({ isGM, onClose, rolls, onClearLog, rollerName, rollerColor }) {
   const [counts, setCounts] = useState({ 4:0, 6:0, 8:0, 10:0, 12:0, 20:0 });
-  const [name, setName] = useState(stored.name || '');
-  const [color, setColor] = useState(stored.color || COLORS[1]);
   const [rolling, setRolling] = useState(false);
   const logRef = useRef(null);
 
@@ -151,10 +144,9 @@ export default function DicePanel({ isGM, onClose, rolls, onClearLog }) {
   const handleRoll = () => {
     if (total === 0 || rolling) return;
     const dice = DIE_TYPES.filter(t => counts[t] > 0).map(t => ({ type: t, count: counts[t] }));
-    const rollerName = isGM ? 'GM' : (name.trim() || 'Player');
-    const rollerColor = isGM ? GM_COLOR : color;
-    if (!isGM) localStorage.setItem('mb-dice-id', JSON.stringify({ name: rollerName, color }));
-    socket.emit('dice:roll', { dice, rollerName, rollerColor });
+    const name  = isGM ? 'GM'        : (rollerName  || 'Player');
+    const color = isGM ? GM_COLOR    : (rollerColor  || COLORS[1]);
+    socket.emit('dice:roll', { dice, rollerName: name, rollerColor: color });
     trackDiceRolled();
     setRolling(true);
     setTimeout(() => setRolling(false), 1500);
@@ -191,24 +183,6 @@ export default function DicePanel({ isGM, onClose, rolls, onClearLog }) {
             </div>
           ))}
         </div>
-
-        {!isGM && (
-          <div className="dice-identity">
-            <input
-              className="text-input"
-              placeholder="Your name…"
-              value={name}
-              maxLength={30}
-              onChange={e => setName(e.target.value)}
-            />
-            <div className="color-swatches">
-              {COLORS.map(c => (
-                <button key={c} className={`color-swatch${color === c ? ' selected' : ''}`}
-                  style={{ background: c }} onClick={() => setColor(c)} />
-              ))}
-            </div>
-          </div>
-        )}
 
         <button className="btn-primary roll-btn" disabled={total === 0 || rolling} onClick={handleRoll}>
           {rolling ? 'Rolling…' : total === 0 ? 'Select dice above' : `Roll ${total} ${total === 1 ? 'Die' : 'Dice'}`}

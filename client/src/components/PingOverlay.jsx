@@ -6,6 +6,7 @@ export default function PingOverlay({ pings, getHexCenter }) {
       {pings.map(ping => {
         const center = getHexCenter(ping.q, ping.r);
         if (!center) return null;
+        const color = ping.color || '#f59e0b';
         return (
           <g key={ping.id} className="ping-group">
             <circle
@@ -13,7 +14,7 @@ export default function PingOverlay({ pings, getHexCenter }) {
               cy={center.y}
               r="8"
               fill="none"
-              stroke="#f59e0b"
+              stroke={color}
               strokeWidth="2"
               className="ping-ring ping-ring-1"
             />
@@ -22,7 +23,7 @@ export default function PingOverlay({ pings, getHexCenter }) {
               cy={center.y}
               r="8"
               fill="none"
-              stroke="#f59e0b"
+              stroke={color}
               strokeWidth="2"
               className="ping-ring ping-ring-2"
             />
@@ -30,7 +31,7 @@ export default function PingOverlay({ pings, getHexCenter }) {
               cx={center.x}
               cy={center.y}
               r="4"
-              fill="#f59e0b"
+              fill={color}
               opacity="0.8"
               className="ping-dot"
             />

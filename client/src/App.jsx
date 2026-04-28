@@ -37,8 +37,18 @@ export default function App() {
   const [selectedSpecialTile, setSelectedSpecialTile] = useState(null);
   const [pings, setPings] = useState([]);
   const [notification, setNotification] = useState('');
-  const [diceOpen, setDiceOpen] = useState(false);
+  const [diceOpen, setDiceOpen] = useState(true);
   const [diceRolls, setDiceRolls] = useState([]);
+
+  // Dice roller identity — lifted here so the header can display/edit it
+  const storedId = (() => { try { return JSON.parse(localStorage.getItem('mb-dice-id') || '{}'); } catch { return {}; } })();
+  const DICE_COLORS = ['#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6','#1abc9c','#e67e22','#e8e0cc'];
+  const [rollerName, setRollerName]   = useState(storedId.name  || '');
+  const [rollerColor, setRollerColor] = useState(storedId.color || DICE_COLORS[1]);
+
+  const updateRollerIdentity = (name, color) => {
+    localStorage.setItem('mb-dice-id', JSON.stringify({ name, color }));
+  };
   const [showInviteCode, setShowInviteCode] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [myCharStats, setMyCharStats] = useState(null);
@@ -228,9 +238,9 @@ export default function App() {
       });
     });
 
-    s.on('ping', ({ q, r, socketId }) => {
+    s.on('ping', ({ q, r, socketId, color }) => {
       const id = `${socketId}-${Date.now()}`;
-      setPings(prev => [...prev, { id, q, r }]);
+      setPings(prev => [...prev, { id, q, r, color: color || '#f59e0b' }]);
       setTimeout(() => setPings(prev => prev.filter(p => p.id !== id)), 2500);
     });
 
@@ -318,9 +328,10 @@ export default function App() {
   }, [isGM]);
 
   const handlePing = useCallback((q, r) => {
-    socket.emit('ping', { q, r });
+    const color = isGM ? '#c8b560' : (rollerColor || '#f59e0b');
+    socket.emit('ping', { q, r, color });
     trackPing();
-  }, []);
+  }, [isGM, rollerColor]);
 
   const handleClearLog = useCallback(() => setDiceRolls([]), []);
 
@@ -425,6 +436,30 @@ export default function App() {
             </div>
           )}
 
+          {!isGM && (
+            <div className="roller-identity">
+              <span className="roller-identity-dot" style={{ background: rollerColor }} />
+              <input
+                className="roller-identity-input"
+                placeholder="Your name…"
+                value={rollerName}
+                maxLength={30}
+                onChange={e => { setRollerName(e.target.value); updateRollerIdentity(e.target.value, rollerColor); }}
+              />
+              <div className="roller-identity-swatches">
+                {DICE_COLORS.map(c => (
+                  <button
+                    key={c}
+                    className={`roller-swatch${rollerColor === c ? ' selected' : ''}`}
+                    style={{ background: c }}
+                    onClick={() => { setRollerColor(c); updateRollerIdentity(rollerName, c); }}
+                    title={c}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           <button
             className={`dice-header-btn${diceOpen ? ' active' : ''}`}
             onClick={() => setDiceOpen(o => !o)}
@@ -476,7 +511,7 @@ export default function App() {
         </div>
       </div>
 
-      {diceOpen && <DicePanel isGM={isGM} onClose={() => setDiceOpen(false)} rolls={diceRolls} onClearLog={handleClearLog} />}
+      {diceOpen && <DicePanel isGM={isGM} onClose={() => setDiceOpen(false)} rolls={diceRolls} onClearLog={handleClearLog} rollerName={rollerName} rollerColor={rollerColor} />}
 
       <ChatPanel authUser={authUser} isGM={isGM} initialMessages={chatMessages} />
       {!isGM && authUser && (
