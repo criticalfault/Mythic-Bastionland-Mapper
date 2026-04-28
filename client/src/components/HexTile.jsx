@@ -13,14 +13,6 @@ function pointsAttr(corners) {
   return corners.map(([x, y]) => `${x},${y}`).join(' ');
 }
 
-// Tiles whose source images don't fill the hex well with "slice".
-// 'meet'  → shrink to fit inside the hex (whole image visible, dark gaps filled by hex base)
-// 'slice' → default, fill and crop (good for landscapes/textures)
-const TERRAIN_ASPECT = {
-  tower:    'xMidYMid meet',
-  town:     'xMidYMid meet',
-  fortress: 'xMidYMid meet',
-};
 
 export default function HexTile({ hex, cx, cy, size, isGM, mode, selectedSpecialTile, onClick, onRightClick }) {
   const corners = hexCorners(cx, cy, size);
@@ -37,9 +29,6 @@ export default function HexTile({ hex, cx, cy, size, isGM, mode, selectedSpecial
   const terrainUrl = regularTileUrls[hex.terrain] || null;
   const specialUrl = hex.specialTile ? specialTileUrls[hex.specialTile] || null : null;
   const showSpecial = specialUrl && (isGM || isSpecialRevealed);
-
-  // Per-tile aspect ratio override, default to slice (fill + crop)
-  const terrainAspect = TERRAIN_ASPECT[hex.terrain] || 'xMidYMid slice';
 
   // Image bounding box (fits tightly around flat-top hex)
   const imgW = size * 2;
@@ -79,7 +68,7 @@ export default function HexTile({ hex, cx, cy, size, isGM, mode, selectedSpecial
           href={terrainUrl}
           x={imgX} y={imgY} width={imgW} height={imgH}
           clipPath={`url(#${clipId})`}
-          preserveAspectRatio={terrainAspect}
+          preserveAspectRatio="xMidYMid slice"
         />
       )}
 

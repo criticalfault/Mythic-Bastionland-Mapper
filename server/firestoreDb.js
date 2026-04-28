@@ -1,4 +1,5 @@
 const admin = require('./firebaseAdmin');
+const { randomInt } = require('crypto');
 
 const USE_FIRESTORE = admin !== null;
 
@@ -92,7 +93,7 @@ function generateInviteCode() {
   const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0,O,1,I,L
   let code = '';
   for (let i = 0; i < 6; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
+    code += chars[randomInt(0, chars.length)];
   }
   return code;
 }

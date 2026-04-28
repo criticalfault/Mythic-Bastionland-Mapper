@@ -10,7 +10,19 @@ import PingOverlay from './components/PingOverlay.jsx';
 import DicePanel from './components/DicePanel.jsx';
 import ChatPanel from './components/ChatPanel.jsx';
 import Lobby from './components/Lobby.jsx';
+import StatsPanel from './components/StatsPanel.jsx';
 import { trackSignIn, trackRealmCreated, trackRealmJoined, trackHexRevealed, trackPing } from './utils/analytics.js';
+
+function copyViaExecCommand(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try { document.execCommand('copy'); } catch (_) { /* best-effort */ }
+  document.body.removeChild(ta);
+}
 
 export default function App() {
   const [authUser, setAuthUser] = useState(null);
@@ -29,6 +41,9 @@ export default function App() {
   const [diceRolls, setDiceRolls] = useState([]);
   const [showInviteCode, setShowInviteCode] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
+  const [myCharStats, setMyCharStats] = useState(null);
+  const [myCharLocked, setMyCharLocked] = useState(false);
+  const [characters, setCharacters] = useState({}); // uid → { displayName, stats, locked }
 
   const notify = useCallback((msg) => {
     setNotification(msg);
@@ -76,6 +91,12 @@ export default function App() {
     setIsGM(gmFlag);
     setGameState(structuredClone(state));
     setChatMessages(chatLog || []);
+    // Restore this user's character stats if they've set them before
+    const myUid = auth.currentUser?.uid;
+    const myChar = myUid ? state.characters?.[myUid] : null;
+    setMyCharStats(myChar?.stats || null);
+    setMyCharLocked(myChar?.locked || false);
+    setCharacters(state.characters || {});
     // Update URL to include room code for easy sharing
     const url = new URL(window.location.href);
     url.searchParams.set('room', inviteCode);
@@ -226,6 +247,14 @@ export default function App() {
       });
     });
 
+    s.on('charSheet:updated', ({ uid: updUid, displayName, stats, locked }) => {
+      if (updUid === auth.currentUser?.uid) {
+        setMyCharStats(stats);
+        setMyCharLocked(locked ?? false);
+      }
+      setCharacters(prev => ({ ...prev, [updUid]: { displayName, stats, locked: locked ?? false } }));
+    });
+
     s.on('map:saved', ({ name }) => notify(`Map "${name}" saved.`));
     s.on('state:saved', ({ name }) => notify(`Game state "${name}" saved.`));
     s.on('error:save', ({ message }) => notify(`Save error: ${message}`));
@@ -251,6 +280,7 @@ export default function App() {
       s.off('state:saved');
       s.off('error:save');
       s.off('error:load');
+      s.off('charSheet:updated');
     };
   }, [currentRoom, notify]);
 
@@ -338,7 +368,7 @@ export default function App() {
 
   // Show Lobby if not in a room yet
   if (!currentRoom || !gameState) {
-    return <Lobby authUser={authUser} onJoined={handleRoomJoined} />;
+    return <Lobby authUser={authUser} onJoined={handleRoomJoined} onSignOut={() => signOut(auth)} />;
   }
 
   // ── MAIN GAME UI ──
@@ -377,8 +407,18 @@ export default function App() {
                   onClick={() => {
                     const url = new URL(window.location.href);
                     url.searchParams.set('room', currentRoom.inviteCode);
-                    navigator.clipboard.writeText(url.toString());
-                    notify('Invite link copied!');
+                    const text = url.toString();
+                    const doNotify = () => notify('Invite link copied!');
+                    if (navigator.clipboard?.writeText) {
+                      navigator.clipboard.writeText(text).then(doNotify).catch(() => {
+                        // Clipboard API blocked — fall back to execCommand
+                        copyViaExecCommand(text);
+                        doNotify();
+                      });
+                    } else {
+                      copyViaExecCommand(text);
+                      doNotify();
+                    }
                   }}
                 >📋</button>
               )}
@@ -397,7 +437,7 @@ export default function App() {
             title="Back to lobby"
           >⬅ Lobby</button>
 
-          <button className="btn-signout" onClick={() => signOut(auth)} title="Sign out">
+          <button className="btn-signout" onClick={() => { if (confirm('Sign out? You will leave the current session.')) signOut(auth); }} title="Sign out">
             {authUser.displayName?.split(' ')[0] || 'Sign out'} ↩
           </button>
           <div className={`connection-dot ${connected ? 'connected' : 'disconnected'}`} title={connected ? 'Connected' : 'Disconnected'} />
@@ -414,6 +454,7 @@ export default function App() {
             onSpecialTileSelect={setSelectedSpecialTile}
             players={gameState.players}
             map={gameState.map}
+            characters={characters}
           />
         )}
 
@@ -438,13 +479,16 @@ export default function App() {
       {diceOpen && <DicePanel isGM={isGM} onClose={() => setDiceOpen(false)} rolls={diceRolls} onClearLog={handleClearLog} />}
 
       <ChatPanel authUser={authUser} isGM={isGM} initialMessages={chatMessages} />
+      {!isGM && authUser && (
+        <StatsPanel authUser={authUser} initialStats={myCharStats} initialLocked={myCharLocked} />
+      )}
 
       {notification && (
         <div className="notification">{notification}</div>
       )}
 
       {!isGM && (
-        <div className="player-hint">Click any hex to ping it for the group</div>
+        <div className="player-hint">Click any hex to ping it for the group &nbsp;·&nbsp; Hold <kbd>Alt</kbd> + drag to pan the map</div>
       )}
     </div>
   );

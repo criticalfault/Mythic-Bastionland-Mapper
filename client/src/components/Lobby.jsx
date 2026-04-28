@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import socket from '../socket.js';
 
-export default function Lobby({ authUser, onJoined }) {
+export default function Lobby({ authUser, onJoined, onSignOut }) {
   const [tab, setTab] = useState('my-realms'); // 'my-realms' | 'join'
   const [realmName, setRealmName] = useState('');
   const [password, setPassword] = useState('');
@@ -66,7 +66,8 @@ export default function Lobby({ authUser, onJoined }) {
         <p className="lobby-subtitle">Remote Play</p>
 
         <div className="lobby-user">
-          Signed in as <strong>{authUser.displayName || authUser.email}</strong>
+          <span>Signed in as <strong>{authUser.displayName || authUser.email}</strong></span>
+          <button className="lobby-signout-btn" onClick={onSignOut} title="Sign out">Sign out ↩</button>
         </div>
 
         <div className="lobby-tabs">

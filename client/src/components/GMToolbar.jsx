@@ -11,10 +11,17 @@ function capitalize(s) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+const GM_STATS = [
+  { key: 'vigor',   label: 'Vigor',   color: '#c0392b', track: 'rgba(192,57,43,0.2)'  },
+  { key: 'clarity', label: 'Clarity', color: '#27ae60', track: 'rgba(39,174,96,0.2)'  },
+  { key: 'spirit',  label: 'Spirit',  color: '#2980b9', track: 'rgba(41,128,185,0.2)' },
+  { key: 'guard',   label: 'Guard',   color: '#c8b560', track: 'rgba(200,181,96,0.2)' },
+];
+
 export default function GMToolbar({
   mode, selectedTerrain, onTerrainSelect,
   selectedSpecialTile, onSpecialTileSelect,
-  players, map,
+  players, map, characters,
 }) {
   const [tab, setTab] = useState('terrain');
   const [newPlayerName, setNewPlayerName] = useState('');
@@ -79,6 +86,7 @@ export default function GMToolbar({
         <button className={tab === 'terrain' ? 'active' : ''} onClick={() => setTab('terrain')}>Terrain</button>
         <button className={tab === 'special' ? 'active' : ''} onClick={() => setTab('special')}>Specials</button>
         <button className={tab === 'players' ? 'active' : ''} onClick={() => setTab('players')}>Players</button>
+        <button className={tab === 'party' ? 'active' : ''} onClick={() => setTab('party')}>Party</button>
         <button className={tab === 'files' ? 'active' : ''} onClick={() => { setTab('files'); requestFileList(); }}>Files</button>
       </div>
 
@@ -89,7 +97,7 @@ export default function GMToolbar({
           <div className="terrain-panel">
             {mode === 'build' ? (
               <>
-                <p className="panel-hint">Left-click / drag to paint. Right-click to assign special.</p>
+                <p className="panel-hint">Left-click / drag to paint. Right-click to assign special. <strong>Alt+drag</strong> or middle-click to pan.</p>
                 <div className="tile-image-grid">
                   {terrainNames.map(name => (
                     <button
@@ -115,7 +123,7 @@ export default function GMToolbar({
               </>
             ) : (
               <>
-                <p className="panel-hint"><strong>Play Mode:</strong> Left-click reveals hex. Right-click reveals special.</p>
+                <p className="panel-hint"><strong>Play Mode:</strong> Left-click reveals hex. Right-click reveals special. <strong>Alt+drag</strong> or middle-click to pan.</p>
                 <button
                   className="btn-secondary full-width"
                   style={{ marginBottom: 8 }}
@@ -203,6 +211,53 @@ export default function GMToolbar({
                 </div>
               ))}
             </div>
+
+          </div>
+        )}
+
+        {/* ── PARTY TAB ── */}
+        {tab === 'party' && (
+          <div className="party-panel">
+            {Object.keys(characters).length === 0 ? (
+              <p className="empty-hint">No character sheets submitted yet.</p>
+            ) : (
+              Object.entries(characters).map(([uid, { displayName, stats, locked }]) => (
+                <div key={uid} className="party-char-card">
+                  <div className="party-char-header">
+                    <span className="party-char-name">{displayName}</span>
+                    {locked && <span className="party-locked-badge" title="Character submitted">🔒</span>}
+                  </div>
+                  {GM_STATS.map(({ key, label, color, track }) => {
+                    const s = stats?.[key];
+                    if (!s) return null;
+                    const pct = s.max > 0 ? (s.current / s.max) * 100 : 0;
+                    const adjust = (delta) => {
+                      const next = {
+                        ...stats,
+                        [key]: {
+                          ...s,
+                          current: Math.max(0, Math.min(s.max, s.current + delta)),
+                        },
+                      };
+                      socket.emit('charSheet:gmUpdate', { uid, stats: next });
+                    };
+                    return (
+                      <div key={key} className="party-stat-row">
+                        <span className="party-stat-label" style={{ color }}>{label}</span>
+                        <button className="party-stat-adj" onClick={() => adjust(-1)} disabled={s.current <= 0}>−</button>
+                        <div className="party-stat-track" style={{ background: track }}>
+                          <div className="party-stat-fill" style={{ width: `${pct}%`, background: color }} />
+                        </div>
+                        <button className="party-stat-adj" onClick={() => adjust(+1)} disabled={s.current >= s.max}>+</button>
+                        <span className="party-stat-val">
+                          {s.current}<span className="party-stat-sep">/{s.max}</span>
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))
+            )}
           </div>
         )}
 

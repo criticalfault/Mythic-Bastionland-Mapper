@@ -50,6 +50,7 @@ class GameState {
         map: savedState.map || createEmptyMap(),
         players: savedState.players || [],
         partyMarker: savedState.partyMarker || { q: 0, r: 0 },
+        characters: savedState.characters || {},
       };
     } else {
       const map = createEmptyMap();
@@ -57,6 +58,7 @@ class GameState {
         map,
         players: [],
         partyMarker: { q: Math.floor(map.cols / 2), r: Math.floor(map.rows / 2) },
+        characters: {},
       };
     }
     this.undoStack = [];
@@ -165,12 +167,29 @@ class GameState {
     return true;
   }
 
+  updateCharacter(uid, displayName, stats, locked) {
+    const prev = this.state.characters[uid] || {};
+    this.state.characters[uid] = {
+      displayName,
+      stats,
+      // Once locked, it stays locked; caller passes explicit boolean or preserves previous
+      locked: locked !== undefined ? locked : (prev.locked || false),
+    };
+  }
+
+  lockCharacter(uid) {
+    if (!this.state.characters[uid]) return false;
+    this.state.characters[uid].locked = true;
+    return true;
+  }
+
   // Snapshot for Firestore auto-save
   toSnapshot() {
     return {
       map: this.state.map,
       players: this.state.players,
       partyMarker: this.state.partyMarker,
+      characters: this.state.characters,
     };
   }
 

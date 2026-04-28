@@ -98,8 +98,8 @@ export default function HexMap({
       e.preventDefault();
       return;
     }
-    // Left-click in build mode = start painting
-    if (e.button === 0 && isGM && mode === 'build') {
+    // Left-click in build mode = start painting (not when a special tile is selected)
+    if (e.button === 0 && isGM && mode === 'build' && selectedSpecialTile === null) {
       isPainting.current = true;
       lastPaintedKey.current = null;
       mouseDownPos.current = { x: e.clientX, y: e.clientY };
@@ -123,7 +123,7 @@ export default function HexMap({
       return;
     }
     // Drag-to-paint in build mode — only after moving >8px from click origin
-    if (isPainting.current && isGM && mode === 'build') {
+    if (isPainting.current && isGM && mode === 'build' && selectedSpecialTile === null) {
       if (mouseDownPos.current) {
         const dx = e.clientX - mouseDownPos.current.x;
         const dy = e.clientY - mouseDownPos.current.y;

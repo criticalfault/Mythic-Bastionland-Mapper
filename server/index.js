@@ -4,6 +4,7 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const { randomInt } = require('crypto');
 const { GameState, createEmptyMap } = require('./gameState');
 require('dotenv').config();
 const admin = require('./firebaseAdmin');
@@ -37,8 +38,13 @@ const socketRoom = new Map();
 
 function getOrCreateRoomInMemory(roomId, meta) {
   if (rooms.has(roomId)) return rooms.get(roomId);
+  const gs = new GameState(meta.lastState || null);
+  // If this is a fresh room (no saved state), use the realm name as the map name
+  if (!meta.lastState && meta.realmName) {
+    gs.getState().map.name = meta.realmName;
+  }
   const entry = {
-    gs: new GameState(meta.lastState || null),
+    gs,
     gmSockets: new Set(),
     gmUid: meta.gmUid,
     gmName: meta.gmName,
@@ -538,7 +544,7 @@ io.on('connection', (socket) => {
       const c = Math.max(1, Math.min(5, parseInt(count) || 1));
       if (![4, 6, 8, 10, 12, 20].includes(t)) continue;
       for (let i = 0; i < c; i++) {
-        results.push({ type: t, result: Math.floor(Math.random() * t) + 1 });
+        results.push({ type: t, result: randomInt(1, t + 1) });
       }
     }
     if (results.length === 0) return;
@@ -553,6 +559,61 @@ io.on('connection', (socket) => {
   });
 
   // ── CHAT (available to all in room) ──
+
+  socket.on('charSheet:gmUpdate', async ({ uid: targetUid, stats }) => {
+    await authReady;
+    if (!isGMSocket()) return;
+    const g = gs(); if (!g) return;
+    const existing = g.getState().characters[targetUid];
+    if (!existing) return; // only update characters that already exist
+    const clean = {};
+    for (const key of ['vigor', 'clarity', 'spirit', 'guard']) {
+      const s = stats?.[key];
+      if (!s) continue;
+      clean[key] = {
+        current: Math.max(0, Math.min(20, parseInt(s.current) || 0)),
+        max:     Math.max(1, Math.min(20, parseInt(s.max)     || 1)),
+      };
+    }
+    // GM cannot change locked status; preserve it
+    g.updateCharacter(targetUid, existing.displayName, clean, existing.locked);
+    broadcastRoom('charSheet:updated', { uid: targetUid, displayName: existing.displayName, stats: clean, locked: existing.locked });
+    scheduleAutoSave(roomId());
+  });
+
+  socket.on('charSheet:update', async ({ stats }) => {
+    await authReady;
+    if (!uid) return;
+    const g = gs(); if (!g) return;
+    const existing = g.getState().characters[uid];
+    // If already locked, reject stat changes (but allow the lock itself)
+    if (existing?.locked) return;
+    // Validate stats shape before storing
+    const clean = {};
+    for (const key of ['vigor', 'clarity', 'spirit', 'guard']) {
+      const s = stats?.[key];
+      if (!s) continue;
+      clean[key] = {
+        current: Math.max(0, Math.min(20, parseInt(s.current) || 0)),
+        max:     Math.max(1, Math.min(20, parseInt(s.max)     || 1)),
+      };
+    }
+    g.updateCharacter(uid, displayName, clean, false);
+    broadcastRoom('charSheet:updated', { uid, displayName, stats: clean, locked: false });
+    scheduleAutoSave(roomId());
+  });
+
+  socket.on('charSheet:lock', async () => {
+    await authReady;
+    if (!uid) return;
+    const g = gs(); if (!g) return;
+    const existing = g.getState().characters[uid];
+    if (!existing) return; // must have submitted stats first
+    if (existing.locked) return; // already locked
+    g.lockCharacter(uid);
+    broadcastRoom('charSheet:updated', { uid, displayName: existing.displayName, stats: existing.stats, locked: true });
+    scheduleAutoSave(roomId());
+  });
 
   socket.on('chat:send', ({ text }) => {
     const rid = roomId();
