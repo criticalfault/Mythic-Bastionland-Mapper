@@ -575,24 +575,25 @@ io.on('connection', (socket) => {
         max:     Math.max(1, Math.min(20, parseInt(s.max)     || 1)),
       };
     }
-    // GM preserves locked status and characterName
-    g.updateCharacter(targetUid, existing.displayName, clean, existing.locked, existing.characterName);
-    broadcastRoom('charSheet:updated', { uid: targetUid, displayName: existing.displayName, characterName: existing.characterName || '', stats: clean, locked: existing.locked });
+    // GM preserves locked status, characterName, and statMethod
+    g.updateCharacter(targetUid, existing.displayName, clean, existing.locked, existing.characterName, existing.statMethod);
+    broadcastRoom('charSheet:updated', { uid: targetUid, displayName: existing.displayName, characterName: existing.characterName || '', stats: clean, locked: existing.locked, statMethod: existing.statMethod || null });
     scheduleAutoSave(roomId());
   });
 
-  socket.on('charSheet:update', async ({ stats, characterName }) => {
+  socket.on('charSheet:update', async ({ stats, characterName, statMethod }) => {
     await authReady;
     if (!uid) return;
     const g = gs(); if (!g) return;
     const existing = g.getState().characters[uid];
-    // If locked, only allow characterName updates (not stat changes)
-    const safeName = typeof characterName === 'string' ? characterName.trim().slice(0, 40) : undefined;
+    const safeName   = typeof characterName === 'string' ? characterName.trim().slice(0, 40) : undefined;
+    const safeMethod = ['rolled', 'manual'].includes(statMethod) ? statMethod : undefined;
+
+    // If locked, only allow name updates
     if (existing?.locked) {
-      // Still allow name changes even when locked
       if (safeName !== undefined && safeName !== existing.characterName) {
-        g.updateCharacter(uid, displayName, existing.stats, true, safeName);
-        broadcastRoom('charSheet:updated', { uid, displayName, characterName: safeName, stats: existing.stats, locked: true });
+        g.updateCharacter(uid, displayName, existing.stats, true, safeName, existing.statMethod);
+        broadcastRoom('charSheet:updated', { uid, displayName, characterName: safeName, stats: existing.stats, locked: true, statMethod: existing.statMethod || null });
         scheduleAutoSave(roomId());
       }
       return;
@@ -606,10 +607,10 @@ io.on('connection', (socket) => {
         max:     Math.max(1, Math.min(20, parseInt(s.max)     || 1)),
       };
     }
-    const prevName = existing?.characterName || '';
-    const nextName = safeName !== undefined ? safeName : prevName;
-    g.updateCharacter(uid, displayName, clean, false, nextName);
-    broadcastRoom('charSheet:updated', { uid, displayName, characterName: nextName, stats: clean, locked: false });
+    const nextName   = safeName   !== undefined ? safeName   : (existing?.characterName || '');
+    const nextMethod = safeMethod !== undefined ? safeMethod : (existing?.statMethod    || null);
+    g.updateCharacter(uid, displayName, clean, false, nextName, nextMethod);
+    broadcastRoom('charSheet:updated', { uid, displayName, characterName: nextName, stats: clean, locked: false, statMethod: nextMethod });
     scheduleAutoSave(roomId());
   });
 
@@ -621,7 +622,7 @@ io.on('connection', (socket) => {
     if (!existing) return;
     if (existing.locked) return;
     g.lockCharacter(uid);
-    broadcastRoom('charSheet:updated', { uid, displayName: existing.displayName, characterName: existing.characterName || '', stats: existing.stats, locked: true });
+    broadcastRoom('charSheet:updated', { uid, displayName: existing.displayName, characterName: existing.characterName || '', stats: existing.stats, locked: true, statMethod: existing.statMethod || null });
     scheduleAutoSave(roomId());
   });
 

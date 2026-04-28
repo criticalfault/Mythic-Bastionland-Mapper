@@ -167,13 +167,15 @@ class GameState {
     return true;
   }
 
-  updateCharacter(uid, displayName, stats, locked, characterName) {
+  updateCharacter(uid, displayName, stats, locked, characterName, statMethod) {
     const prev = this.state.characters[uid] || {};
     this.state.characters[uid] = {
       displayName,
       characterName: characterName !== undefined ? characterName : (prev.characterName || ''),
       stats,
       locked: locked !== undefined ? locked : (prev.locked || false),
+      // statMethod: 'rolled' | 'manual' | null — preserve previous if not explicitly set
+      statMethod: statMethod !== undefined ? statMethod : (prev.statMethod || null),
     };
   }
 

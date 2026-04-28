@@ -221,11 +221,15 @@ export default function GMToolbar({
             {Object.keys(characters).length === 0 ? (
               <p className="empty-hint">No character sheets submitted yet.</p>
             ) : (
-              Object.entries(characters).map(([uid, { displayName, characterName, stats, locked }]) => (
+              Object.entries(characters).map(([uid, { displayName, characterName, stats, locked, statMethod }]) => (
                 <div key={uid} className="party-char-card">
                   <div className="party-char-header">
                     <span className="party-char-name">{characterName || displayName}</span>
-                    {locked && <span className="party-locked-badge" title="Character submitted">🔒</span>}
+                    <div className="party-char-badges">
+                      {statMethod === 'rolled' && <span className="party-method-badge rolled-badge" title="Stats were rolled">🎲</span>}
+                      {statMethod === 'manual' && <span className="party-method-badge manual-badge" title="Stats were entered manually">✍</span>}
+                      {locked && <span className="party-locked-badge" title="Character submitted">🔒</span>}
+                    </div>
                   </div>
                   {GM_STATS.map(({ key, label, color, track }) => {
                     const s = stats?.[key];

@@ -54,7 +54,8 @@ export default function App() {
   const [myCharStats, setMyCharStats] = useState(null);
   const [myCharLocked, setMyCharLocked] = useState(false);
   const [myCharName, setMyCharName] = useState('');
-  const [characters, setCharacters] = useState({}); // uid → { displayName, characterName, stats, locked }
+  const [myStatMethod, setMyStatMethod] = useState(null);
+  const [characters, setCharacters] = useState({}); // uid → { displayName, characterName, stats, locked, statMethod }
 
   const notify = useCallback((msg) => {
     setNotification(msg);
@@ -108,6 +109,7 @@ export default function App() {
     setMyCharStats(myChar?.stats || null);
     setMyCharLocked(myChar?.locked || false);
     setMyCharName(myChar?.characterName || '');
+    setMyStatMethod(myChar?.statMethod || null);
     setCharacters(state.characters || {});
     // Update URL to include room code for easy sharing
     const url = new URL(window.location.href);
@@ -259,13 +261,14 @@ export default function App() {
       });
     });
 
-    s.on('charSheet:updated', ({ uid: updUid, displayName, characterName, stats, locked }) => {
+    s.on('charSheet:updated', ({ uid: updUid, displayName, characterName, stats, locked, statMethod }) => {
       if (updUid === auth.currentUser?.uid) {
         setMyCharStats(stats);
         setMyCharLocked(locked ?? false);
         setMyCharName(characterName ?? '');
+        setMyStatMethod(statMethod ?? null);
       }
-      setCharacters(prev => ({ ...prev, [updUid]: { displayName, characterName: characterName ?? '', stats, locked: locked ?? false } }));
+      setCharacters(prev => ({ ...prev, [updUid]: { displayName, characterName: characterName ?? '', stats, locked: locked ?? false, statMethod: statMethod ?? null } }));
     });
 
     s.on('map:saved', ({ name }) => notify(`Map "${name}" saved.`));
@@ -518,7 +521,7 @@ export default function App() {
 
       <ChatPanel authUser={authUser} isGM={isGM} initialMessages={chatMessages} />
       {!isGM && authUser && (
-        <StatsPanel authUser={authUser} initialStats={myCharStats} initialLocked={myCharLocked} initialCharacterName={myCharName} />
+        <StatsPanel authUser={authUser} initialStats={myCharStats} initialLocked={myCharLocked} initialCharacterName={myCharName} initialStatMethod={myStatMethod} />
       )}
 
       {notification && (
