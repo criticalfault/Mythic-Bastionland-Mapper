@@ -276,6 +276,11 @@ export default function App() {
     s.on('error:save', ({ message }) => notify(`Save error: ${message}`));
     s.on('error:load', ({ message }) => notify(`Load error: ${message}`));
 
+    s.on('room:deleted', () => {
+      handleLeaveRoom();
+      notify('This realm has been deleted.');
+    });
+
     return () => {
       s.off('state:full');
       s.off('tile:setTerrain');
@@ -297,6 +302,7 @@ export default function App() {
       s.off('error:save');
       s.off('error:load');
       s.off('charSheet:updated');
+      s.off('room:deleted');
     };
   }, [currentRoom, notify]);
 

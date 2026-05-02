@@ -177,6 +177,34 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Delete a room (GM only — must own it)
+  socket.on('lobby:deleteRoom', async ({ roomId }) => {
+    await authReady;
+    if (!uid) return socket.emit('lobby:error', { message: 'Not signed in.' });
+    if (!roomId) return;
+    try {
+      // Verify ownership via Firestore before deleting
+      if (fsDb.USE_FIRESTORE) {
+        const roomDoc = await fsDb.getRoom(roomId);
+        if (!roomDoc) return socket.emit('lobby:error', { message: 'Room not found.' });
+        if (roomDoc.gmUid !== uid) return socket.emit('lobby:error', { message: 'Only the GM can delete this realm.' });
+        await fsDb.deleteRoom(roomId);
+      }
+      // Evict from in-memory registry and kick any connected sockets
+      const room = rooms.get(roomId);
+      if (room) {
+        inviteIndex.delete(room.inviteCode?.toUpperCase());
+        // Tell everyone still in the room it has been deleted
+        io.to(roomId).emit('room:deleted', { message: 'This realm has been deleted by the GM.' });
+        rooms.delete(roomId);
+      }
+      socket.emit('lobby:roomDeleted', { roomId });
+    } catch (e) {
+      console.error('[lobby:deleteRoom]', e);
+      socket.emit('lobby:error', { message: `Failed to delete realm: ${e.message}` });
+    }
+  });
+
   // Join a room by invite code
   socket.on('lobby:joinRoom', async ({ inviteCode, password }) => {
     await authReady;

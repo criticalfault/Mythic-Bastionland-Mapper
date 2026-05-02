@@ -11,20 +11,27 @@ export default function Lobby({ authUser, onJoined, onSignOut }) {
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   // Request GM's room list on mount
   useEffect(() => {
     socket.emit('lobby:myRooms');
     socket.on('lobby:myRooms', (rooms) => setMyRooms(rooms));
     socket.on('room:joined', onJoined);
+    socket.on('lobby:roomDeleted', ({ roomId }) => {
+      setMyRooms(prev => prev ? prev.filter(r => r.roomId !== roomId) : prev);
+      setDeletingId(null);
+    });
     socket.on('lobby:error', ({ message }) => {
       setError(message);
       setCreating(false);
       setJoining(false);
+      setDeletingId(null);
     });
     return () => {
       socket.off('lobby:myRooms');
       socket.off('room:joined');
+      socket.off('lobby:roomDeleted');
       socket.off('lobby:error');
     };
   }, [onJoined]);
@@ -57,6 +64,13 @@ export default function Lobby({ authUser, onJoined, onSignOut }) {
     setError('');
     setJoining(true);
     socket.emit('lobby:joinRoom', { inviteCode: room.inviteCode });
+  };
+
+  const handleDelete = (room) => {
+    if (!confirm(`Delete "${room.realmName}"? This permanently removes the realm and all its saved data. This cannot be undone.`)) return;
+    setError('');
+    setDeletingId(room.roomId);
+    socket.emit('lobby:deleteRoom', { roomId: room.roomId });
   };
 
   return (
@@ -128,13 +142,23 @@ export default function Lobby({ authUser, onJoined, onSignOut }) {
                     <span className="lobby-room-name">{room.realmName}{room.hasPassword ? ' 🔒' : ''}</span>
                     <span className="lobby-invite-code">{room.inviteCode}</span>
                   </div>
-                  <button
-                    className="btn-secondary"
-                    onClick={() => handleRejoin(room)}
-                    disabled={joining}
-                  >
-                    Enter
-                  </button>
+                  <div className="lobby-room-actions">
+                    <button
+                      className="btn-secondary"
+                      onClick={() => handleRejoin(room)}
+                      disabled={joining || deletingId === room.roomId}
+                    >
+                      Enter
+                    </button>
+                    <button
+                      className="btn-danger-sm lobby-delete-btn"
+                      onClick={() => handleDelete(room)}
+                      disabled={deletingId === room.roomId}
+                      title="Delete this realm"
+                    >
+                      {deletingId === room.roomId ? '…' : '🗑'}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
