@@ -25,7 +25,7 @@ function makeHex(q, r, terrain = 'empty') {
   };
 }
 
-function createEmptyMap(cols = 10, rows = 8, name = 'New Realm') {
+function createEmptyMap(cols = 12, rows = 12, name = 'New Realm') {
   const hexes = {};
   for (let r = 0; r < rows; r++) {
     for (let q = 0; q < cols; q++) {

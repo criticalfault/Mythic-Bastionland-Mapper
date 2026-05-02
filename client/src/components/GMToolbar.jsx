@@ -33,8 +33,8 @@ export default function GMToolbar({
   const [fileListError, setFileListError] = useState('');
   const [fileListLoading, setFileListLoading] = useState(false);
   const [showMapDialog, setShowMapDialog] = useState(false);
-  const [newMapCols, setNewMapCols] = useState(10);
-  const [newMapRows, setNewMapRows] = useState(8);
+  const [newMapCols, setNewMapCols] = useState(12);
+  const [newMapRows, setNewMapRows] = useState(12);
   const [newMapName, setNewMapName] = useState('New Realm');
 
   React.useEffect(() => {

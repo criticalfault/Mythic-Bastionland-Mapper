@@ -15,9 +15,9 @@ describe('createEmptyMap', () => {
 
   it('uses default dimensions when none provided', () => {
     const map = createEmptyMap();
-    expect(map.cols).toBe(10);
-    expect(map.rows).toBe(8);
-    expect(Object.keys(map.hexes)).toHaveLength(80);
+    expect(map.cols).toBe(12);
+    expect(map.rows).toBe(12);
+    expect(Object.keys(map.hexes)).toHaveLength(144);
   });
 
   it('sets correct name and id', () => {
@@ -43,9 +43,9 @@ describe('GameState constructor', () => {
   it('creates a fresh state with empty map by default', () => {
     const gs = new GameState();
     const { map, players, partyMarker } = gs.getState();
-    expect(map.cols).toBe(10);
+    expect(map.cols).toBe(12);
     expect(players).toHaveLength(0);
-    expect(partyMarker).toMatchObject({ q: 5, r: 4 });
+    expect(partyMarker).toMatchObject({ q: 6, r: 6 });
   });
 
   it('restores from a saved snapshot', () => {
