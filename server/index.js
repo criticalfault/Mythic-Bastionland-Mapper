@@ -26,6 +26,15 @@ if (fs.existsSync(clientDist)) {
   app.get('*', (req, res) => res.sendFile(path.join(clientDist, 'index.html')));
 }
 
+// Strip GM-only fields (myth markers) before sending state to players
+function playerSafeState(state) {
+  const safe = structuredClone(state);
+  for (const hex of Object.values(safe.map.hexes)) {
+    delete hex.myth;
+  }
+  return safe;
+}
+
 // --- In-memory room registry ---
 // roomId → { gs: GameState, gmSockets: Set<socketId>, gmUid, gmName, realmName, inviteCode }
 const rooms = new Map();
@@ -257,7 +266,7 @@ io.on('connection', (socket) => {
         inviteCode: room.inviteCode,
         realmName: room.realmName,
         isGM,
-        state: room.gs.getState(),
+        state: isGM ? room.gs.getState() : playerSafeState(room.gs.getState()),
         chatLog: room.chatLog,
       });
     } catch (e) {
@@ -296,7 +305,11 @@ io.on('connection', (socket) => {
     if (!isGMSocket()) return;
     const g = gs(); if (!g) return;
     g.updateTerrain(key, terrain, label);
-    broadcastRoom('tile:setTerrain', { key, hex: g.getState().map.hexes[key] });
+    const hex = g.getState().map.hexes[key];
+    // Strip myth from broadcast — players must never receive myth values;
+    // GM client preserves myth locally via its own state.
+    const { myth: _myth, ...safeHex } = hex;
+    broadcastRoom('tile:setTerrain', { key, hex: safeHex });
     scheduleAutoSave(roomId());
   });
 
@@ -336,7 +349,15 @@ io.on('connection', (socket) => {
     if (!isGMSocket()) return;
     const g = gs(); if (!g) return;
     g.revealAll();
-    broadcastRoom('map:revealAll', { hexes: g.getState().map.hexes });
+    // Strip myth from each hex before broadcasting to all clients
+    const safeHexes = {};
+    for (const [k, h] of Object.entries(g.getState().map.hexes)) {
+      const { myth: _myth, ...safe } = h;
+      safeHexes[k] = safe;
+    }
+    broadcastRoom('map:revealAll', { hexes: safeHexes });
+    // Send full hexes (with myth) to GM sockets
+    emitToGMs('map:revealAll', { hexes: g.getState().map.hexes });
     scheduleAutoSave(roomId());
   });
 
@@ -408,8 +429,8 @@ io.on('connection', (socket) => {
     const rid = roomId();
     const map = createEmptyMap(cols, rows, name);
     g.setMap(map);
-    // Send full state to all in room — players get isGM: false, GM gets isGM: true
-    io.to(rid).emit('state:full', { state: g.getState(), isGM: false });
+    // Send full state to all in room — players get playerSafeState (no myth), GM gets full state
+    io.to(rid).emit('state:full', { state: playerSafeState(g.getState()), isGM: false });
     socket.emit('state:full', { state: g.getState(), isGM: true });
     scheduleAutoSave(rid);
   });
@@ -442,7 +463,7 @@ io.on('connection', (socket) => {
       } else {
         g.loadMap(filename);
       }
-      io.to(rid).emit('state:full', { state: g.getState(), isGM: false });
+      io.to(rid).emit('state:full', { state: playerSafeState(g.getState()), isGM: false });
       socket.emit('state:full', { state: g.getState(), isGM: true });
       scheduleAutoSave(rid);
     } catch (e) {
@@ -480,7 +501,7 @@ io.on('connection', (socket) => {
       } else {
         g.loadGameState(filename);
       }
-      io.to(rid).emit('state:full', { state: g.getState(), isGM: false });
+      io.to(rid).emit('state:full', { state: playerSafeState(g.getState()), isGM: false });
       socket.emit('state:full', { state: g.getState(), isGM: true });
       scheduleAutoSave(rid);
     } catch (e) {
@@ -550,7 +571,34 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ── DAY PHASE (GM only) ──
+
+  socket.on('phase:set', ({ phase }) => {
+    if (!isGMSocket()) return;
+    const g = gs(); if (!g) return;
+    if (!g.setDayPhase(phase)) return;
+    broadcastRoom('phase:set', { phase });
+    scheduleAutoSave(roomId());
+  });
+
   // ── UNDO (GM only) ──
+
+  socket.on('tile:setMyth', ({ key, myth }) => {
+    if (!isGMSocket()) return;
+    const g = gs(); if (!g) return;
+    const val = myth === null ? null : parseInt(myth);
+    g.setMythMarker(key, val);
+    const hex = g.getState().map.hexes[key];
+    if (!hex) return;
+    // Broadcast only to GM sockets — players never see myth markers
+    const rid = roomId();
+    const room = rooms.get(rid);
+    if (!room) return;
+    for (const sid of room.gmSockets) {
+      io.to(sid).emit('tile:setMyth', { key, myth: hex.myth });
+    }
+    scheduleAutoSave(rid);
+  });
 
   socket.on('map:undo', () => {
     if (!isGMSocket()) return;
@@ -588,7 +636,7 @@ io.on('connection', (socket) => {
 
   // ── CHAT (available to all in room) ──
 
-  socket.on('charSheet:gmUpdate', async ({ uid: targetUid, stats }) => {
+  socket.on('charSheet:gmUpdate', async ({ uid: targetUid, stats, fatigued }) => {
     await authReady;
     if (!isGMSocket()) return;
     const g = gs(); if (!g) return;
@@ -603,29 +651,43 @@ io.on('connection', (socket) => {
         max:     Math.max(1, Math.min(20, parseInt(s.max)     || 1)),
       };
     }
+    const nextFatigued = fatigued !== undefined ? !!fatigued : (existing.fatigued || false);
     // GM preserves locked status, characterName, and statMethod
-    g.updateCharacter(targetUid, existing.displayName, clean, existing.locked, existing.characterName, existing.statMethod);
-    broadcastRoom('charSheet:updated', { uid: targetUid, displayName: existing.displayName, characterName: existing.characterName || '', stats: clean, locked: existing.locked, statMethod: existing.statMethod || null });
+    g.updateCharacter(targetUid, existing.displayName, clean, existing.locked, existing.characterName, existing.statMethod, nextFatigued);
+    broadcastRoom('charSheet:updated', { uid: targetUid, displayName: existing.displayName, characterName: existing.characterName || '', stats: clean, locked: existing.locked, statMethod: existing.statMethod || null, fatigued: nextFatigued });
     scheduleAutoSave(roomId());
   });
 
-  socket.on('charSheet:update', async ({ stats, characterName, statMethod }) => {
+  socket.on('charSheet:update', async ({ stats, characterName, statMethod, fatigued }) => {
     await authReady;
     if (!uid) return;
     const g = gs(); if (!g) return;
     const existing = g.getState().characters[uid];
     const safeName   = typeof characterName === 'string' ? characterName.trim().slice(0, 40) : undefined;
     const safeMethod = ['rolled', 'manual'].includes(statMethod) ? statMethod : undefined;
+    const safeFatigued = fatigued !== undefined ? !!fatigued : undefined;
 
-    // If locked, only allow name updates
+    // If locked: allow name changes, current stat adjustments, and fatigue toggle only
     if (existing?.locked) {
-      if (safeName !== undefined && safeName !== existing.characterName) {
-        g.updateCharacter(uid, displayName, existing.stats, true, safeName, existing.statMethod);
-        broadcastRoom('charSheet:updated', { uid, displayName, characterName: safeName, stats: existing.stats, locked: true, statMethod: existing.statMethod || null });
-        scheduleAutoSave(roomId());
+      const nextName     = safeName     !== undefined ? safeName     : existing.characterName;
+      const nextFatigued = safeFatigued !== undefined ? safeFatigued : (existing.fatigued || false);
+
+      // Only apply changes to current values — max and statMethod are immutable when locked
+      const nextStats = structuredClone(existing.stats);
+      if (stats) {
+        for (const key of ['vigor', 'clarity', 'spirit', 'guard']) {
+          if (stats[key]?.current !== undefined && nextStats[key]) {
+            nextStats[key].current = Math.max(0, Math.min(nextStats[key].max, parseInt(stats[key].current) || 0));
+          }
+        }
       }
+
+      g.updateCharacter(uid, displayName, nextStats, true, nextName, existing.statMethod, nextFatigued);
+      broadcastRoom('charSheet:updated', { uid, displayName, characterName: nextName, stats: nextStats, locked: true, statMethod: existing.statMethod || null, fatigued: nextFatigued });
+      scheduleAutoSave(roomId());
       return;
     }
+
     const clean = {};
     for (const key of ['vigor', 'clarity', 'spirit', 'guard']) {
       const s = stats?.[key];
@@ -635,10 +697,11 @@ io.on('connection', (socket) => {
         max:     Math.max(1, Math.min(20, parseInt(s.max)     || 1)),
       };
     }
-    const nextName   = safeName   !== undefined ? safeName   : (existing?.characterName || '');
-    const nextMethod = safeMethod !== undefined ? safeMethod : (existing?.statMethod    || null);
-    g.updateCharacter(uid, displayName, clean, false, nextName, nextMethod);
-    broadcastRoom('charSheet:updated', { uid, displayName, characterName: nextName, stats: clean, locked: false, statMethod: nextMethod });
+    const nextName     = safeName     !== undefined ? safeName     : (existing?.characterName || '');
+    const nextMethod   = safeMethod   !== undefined ? safeMethod   : (existing?.statMethod    || null);
+    const nextFatigued = safeFatigued !== undefined ? safeFatigued : (existing?.fatigued      || false);
+    g.updateCharacter(uid, displayName, clean, false, nextName, nextMethod, nextFatigued);
+    broadcastRoom('charSheet:updated', { uid, displayName, characterName: nextName, stats: clean, locked: false, statMethod: nextMethod, fatigued: nextFatigued });
     scheduleAutoSave(roomId());
   });
 
@@ -650,7 +713,7 @@ io.on('connection', (socket) => {
     if (!existing) return;
     if (existing.locked) return;
     g.lockCharacter(uid);
-    broadcastRoom('charSheet:updated', { uid, displayName: existing.displayName, characterName: existing.characterName || '', stats: existing.stats, locked: true, statMethod: existing.statMethod || null });
+    broadcastRoom('charSheet:updated', { uid, displayName: existing.displayName, characterName: existing.characterName || '', stats: existing.stats, locked: true, statMethod: existing.statMethod || null, fatigued: existing.fatigued || false });
     scheduleAutoSave(roomId());
   });
 

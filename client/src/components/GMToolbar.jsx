@@ -18,9 +18,12 @@ const GM_STATS = [
   { key: 'guard',   label: 'Guard',   color: '#c8b560', track: 'rgba(200,181,96,0.2)' },
 ];
 
+const MYTH_NUMBERS = [1, 2, 3, 4, 5, 6];
+
 export default function GMToolbar({
   mode, selectedTerrain, onTerrainSelect,
   selectedSpecialTile, onSpecialTileSelect,
+  selectedMyth, onMythSelect,
   players, map, characters,
 }) {
   const [tab, setTab] = useState('terrain');
@@ -149,7 +152,7 @@ export default function GMToolbar({
                 <div className="tile-image-grid">
                   {/* None/eraser option */}
                   <button
-                    className={`tile-image-btn ${selectedSpecialTile === null ? 'selected' : ''}`}
+                    className={`tile-image-btn ${selectedSpecialTile === null && selectedMyth === null ? 'selected' : ''}`}
                     onClick={() => onSpecialTileSelect(null)}
                     title="None (erase special)"
                   >
@@ -167,6 +170,27 @@ export default function GMToolbar({
                       <span className="tile-image-label">{capitalize(name)}</span>
                     </button>
                   ))}
+                </div>
+
+                {/* Myth markers (GM-only, never shown to players) */}
+                <div className="myth-section">
+                  <p className="myth-section-label">⚑ Myth Markers <span className="myth-gm-tag">GM only</span></p>
+                  <p className="panel-hint" style={{ marginTop: 0 }}>Right-click a hex to place/clear a myth marker.</p>
+                  <div className="myth-btn-row">
+                    <button
+                      className={`myth-btn myth-clear-btn${selectedMyth === 'clear' ? ' active' : ''}`}
+                      onClick={() => onMythSelect(selectedMyth === 'clear' ? null : 'clear')}
+                      title="Clear myth marker"
+                    >✕</button>
+                    {MYTH_NUMBERS.map(n => (
+                      <button
+                        key={n}
+                        className={`myth-btn${selectedMyth === n ? ' active' : ''}`}
+                        onClick={() => onMythSelect(selectedMyth === n ? null : n)}
+                        title={`Myth marker ${n}`}
+                      >{n}</button>
+                    ))}
+                  </div>
                 </div>
               </>
             ) : (
@@ -221,14 +245,19 @@ export default function GMToolbar({
             {Object.keys(characters).length === 0 ? (
               <p className="empty-hint">No character sheets submitted yet.</p>
             ) : (
-              Object.entries(characters).map(([uid, { displayName, characterName, stats, locked, statMethod }]) => (
-                <div key={uid} className="party-char-card">
+              Object.entries(characters).map(([uid, { displayName, characterName, stats, locked, statMethod, fatigued }]) => (
+                <div key={uid} className={`party-char-card${fatigued ? ' party-char-fatigued' : ''}`}>
                   <div className="party-char-header">
                     <span className="party-char-name">{characterName || displayName}</span>
                     <div className="party-char-badges">
                       {statMethod === 'rolled' && <span className="party-method-badge rolled-badge" title="Stats were rolled">🎲</span>}
                       {statMethod === 'manual' && <span className="party-method-badge manual-badge" title="Stats were entered manually">✍</span>}
                       {locked && <span className="party-locked-badge" title="Character submitted">🔒</span>}
+                      <button
+                        className={`party-fatigue-btn${fatigued ? ' active' : ''}`}
+                        title={fatigued ? 'Clear fatigue' : 'Mark as fatigued'}
+                        onClick={() => socket.emit('charSheet:gmUpdate', { uid, stats: stats || {}, fatigued: !fatigued })}
+                      >{fatigued ? '😓' : '💪'}</button>
                     </div>
                   </div>
                   {GM_STATS.map(({ key, label, color, track }) => {

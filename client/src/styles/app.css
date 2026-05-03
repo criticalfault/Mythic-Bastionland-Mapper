@@ -2222,3 +2222,222 @@ body {
   font-size: 13px;
   flex-shrink: 0;
 }
+
+/* ── Myth Markers ── */
+.myth-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.myth-section-label {
+  font-family: 'Cinzel', serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin: 0 0 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.myth-gm-tag {
+  font-family: 'Crimson Text', serif;
+  font-size: 0.65rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0px 5px;
+}
+.myth-btn-row {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.myth-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #6b3a2a;
+  background: #3d1f12;
+  color: #f5e6c8;
+  font-family: 'Crimson Text', serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  padding: 0;
+}
+.myth-btn:hover {
+  background: #6b3a2a;
+  border-color: #c8a070;
+  color: #fff;
+}
+.myth-btn.active {
+  background: #8b4a2a;
+  border-color: #f5c878;
+  color: #fff5d0;
+  box-shadow: 0 0 0 2px rgba(245,200,120,0.35);
+}
+.myth-clear-btn {
+  border-color: #555;
+  background: #2a2a2a;
+  color: #888;
+}
+.myth-clear-btn:hover {
+  background: #444;
+  border-color: #888;
+  color: #ccc;
+}
+.myth-clear-btn.active {
+  background: #3a3030;
+  border-color: #f87171;
+  color: #f87171;
+  box-shadow: 0 0 0 2px rgba(248,113,113,0.25);
+}
+
+/* ── Day Phase Panel ── */
+.day-phase-panel {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: all;
+}
+.day-phase-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px 7px 10px;
+  background: rgba(18, 16, 28, 0.82);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: rgba(255,255,255,0.35);
+  font-family: 'Cinzel', serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: default;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(6px);
+  min-width: 130px;
+  position: relative;
+}
+.day-phase-item:not(:disabled):not(.active) {
+  cursor: pointer;
+}
+.day-phase-item:not(:disabled):not(.active):hover {
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(255,255,255,0.25);
+  color: rgba(255,255,255,0.7);
+}
+.day-phase-item.active {
+  font-weight: 700;
+  cursor: default;
+}
+.day-phase-icon {
+  font-size: 1.05rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.day-phase-label {
+  flex: 1;
+}
+.day-phase-pip {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+/* ── Fatigue ── */
+.fatigue-row {
+  margin-top: 8px;
+  display: flex;
+}
+.fatigue-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.45);
+  font-family: 'Crimson Text', serif;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+  justify-content: center;
+}
+.fatigue-toggle:hover {
+  border-color: rgba(255,255,255,0.25);
+  color: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.08);
+}
+.fatigue-toggle.fatigued {
+  background: rgba(249,115,22,0.12);
+  border-color: rgba(249,115,22,0.45);
+  color: #fb923c;
+}
+.fatigue-toggle.fatigued:hover {
+  background: rgba(249,115,22,0.2);
+  border-color: rgba(249,115,22,0.7);
+}
+.fatigue-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+.fatigue-label {
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+/* Fatigued state dims the whole stats panel handle */
+.stats-panel--fatigued .stats-handle {
+  background: rgba(249,115,22,0.06);
+  border-color: rgba(249,115,22,0.2);
+}
+
+/* GM party card fatigue state */
+.party-char-fatigued {
+  border-color: rgba(249,115,22,0.35) !important;
+  background: rgba(249,115,22,0.05) !important;
+}
+.party-fatigue-btn {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.party-fatigue-btn:hover {
+  border-color: rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.08);
+}
+.party-fatigue-btn.active {
+  border-color: rgba(249,115,22,0.5);
+  background: rgba(249,115,22,0.12);
+}

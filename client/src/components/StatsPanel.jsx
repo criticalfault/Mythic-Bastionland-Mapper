@@ -25,10 +25,11 @@ function clamp(v, min, max) {
   return Math.max(min, Math.min(max, v));
 }
 
-export default function StatsPanel({ authUser, initialStats, initialLocked, initialCharacterName, initialStatMethod }) {
+export default function StatsPanel({ authUser, initialStats, initialLocked, initialCharacterName, initialStatMethod, initialFatigued }) {
   const [open, setOpen]               = useState(false);
   const [stats, setStats]             = useState(() => initialStats ?? DEFAULT_STATS);
   const [locked, setLocked]           = useState(() => initialLocked ?? false);
+  const [fatigued, setFatigued]       = useState(() => initialFatigued ?? false);
   const [characterName, setCharacterName] = useState(() => initialCharacterName ?? '');
   const [statMethod, setStatMethod]   = useState(() => initialStatMethod ?? null);
   const [entryMode, setEntryMode]     = useState(false); // manual entry form
@@ -40,18 +41,20 @@ export default function StatsPanel({ authUser, initialStats, initialLocked, init
 
   useEffect(() => { if (initialStats)       setStats(initialStats);            }, [initialStats]);
   useEffect(() => { setLocked(initialLocked ?? false);                         }, [initialLocked]);
+  useEffect(() => { setFatigued(initialFatigued ?? false);                     }, [initialFatigued]);
   useEffect(() => { setCharacterName(initialCharacterName ?? '');              }, [initialCharacterName]);
   useEffect(() => { setStatMethod(initialStatMethod ?? null);                  }, [initialStatMethod]);
 
   // ── Emit helpers ──────────────────────────────────────────────────────────
 
-  const emitStats = (nextStats, method, name) => {
+  const emitStats = (nextStats, method, name, nextFatigued) => {
     clearTimeout(emitTimeout.current);
     emitTimeout.current = setTimeout(() => {
       socket.emit('charSheet:update', {
         stats: nextStats,
         characterName: name ?? characterName,
         statMethod: method ?? statMethod,
+        fatigued: nextFatigued ?? fatigued,
       });
     }, 300);
   };
@@ -59,14 +62,13 @@ export default function StatsPanel({ authUser, initialStats, initialLocked, init
   const emitName = (name) => {
     clearTimeout(nameTimeout.current);
     nameTimeout.current = setTimeout(() => {
-      socket.emit('charSheet:update', { stats, characterName: name, statMethod });
+      socket.emit('charSheet:update', { stats, characterName: name, statMethod, fatigued });
     }, 400);
   };
 
-  // ── Normal mode: +/− current ──────────────────────────────────────────────
+  // ── Normal mode: +/− current (allowed even when locked) ──────────────────
 
   const adjustCurrent = (key, delta) => {
-    if (locked) return;
     setStats(prev => {
       const s = prev[key];
       const next = { ...prev, [key]: { ...s, current: clamp(s.current + delta, 0, s.max) } };
@@ -75,7 +77,7 @@ export default function StatsPanel({ authUser, initialStats, initialLocked, init
     });
   };
 
-  // ── Normal mode: click max to edit inline ─────────────────────────────────
+  // ── Normal mode: click max to edit inline (unlocked only) ────────────────
 
   const commitMax = (key, raw) => {
     if (locked) { setEditingMax(null); return; }
@@ -88,6 +90,14 @@ export default function StatsPanel({ authUser, initialStats, initialLocked, init
     });
     setStatMethod(method);
     setEditingMax(null);
+  };
+
+  // ── Fatigue toggle ────────────────────────────────────────────────────────
+
+  const toggleFatigue = () => {
+    const next = !fatigued;
+    setFatigued(next);
+    socket.emit('charSheet:update', { stats, characterName, statMethod, fatigued: next });
   };
 
   // ── Roll all ──────────────────────────────────────────────────────────────
@@ -105,7 +115,7 @@ export default function StatsPanel({ authUser, initialStats, initialLocked, init
     setStats(next);
     setStatMethod(method);
     setEntryMode(false);
-    socket.emit('charSheet:update', { stats: next, characterName, statMethod: method });
+    socket.emit('charSheet:update', { stats: next, characterName, statMethod: method, fatigued });
   };
 
   // ── Manual entry mode ─────────────────────────────────────────────────────
@@ -142,7 +152,7 @@ export default function StatsPanel({ authUser, initialStats, initialLocked, init
     setStatMethod(method);
     setEntryMode(false);
     setDraft(null);
-    socket.emit('charSheet:update', { stats: next, characterName, statMethod: method });
+    socket.emit('charSheet:update', { stats: next, characterName, statMethod: method, fatigued });
   };
 
   // ── Character name ────────────────────────────────────────────────────────
@@ -158,7 +168,7 @@ export default function StatsPanel({ authUser, initialStats, initialLocked, init
   const handleSubmit = () => {
     if (locked) return;
     if (!confirm('Submit your character? This locks your stats — you won\'t be able to re-roll. The GM can still adjust your values during play.')) return;
-    socket.emit('charSheet:update', { stats, characterName, statMethod });
+    socket.emit('charSheet:update', { stats, characterName, statMethod, fatigued });
     setTimeout(() => socket.emit('charSheet:lock'), 350);
     setLocked(true);
   };
@@ -166,7 +176,7 @@ export default function StatsPanel({ authUser, initialStats, initialLocked, init
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className={`stats-panel${open ? ' stats-panel--open' : ''}`}>
+    <div className={`stats-panel${open ? ' stats-panel--open' : ''}${fatigued ? ' stats-panel--fatigued' : ''}`}>
 
       {/* Pull-up handle */}
       <button
@@ -185,7 +195,7 @@ export default function StatsPanel({ authUser, initialStats, initialLocked, init
               })}
             </span>
           )}
-          <span>Character{locked ? ' 🔒' : ''}</span>
+          <span>Character{locked ? ' 🔒' : ''}{fatigued ? ' · 😓 Fatigued' : ''}</span>
           <span className="stats-handle-chevron">{open ? '▾' : '▴'}</span>
         </span>
       </button>
@@ -208,7 +218,7 @@ export default function StatsPanel({ authUser, initialStats, initialLocked, init
               <span className="stats-name-edit-icon" aria-hidden="true">✎</span>
             </div>
             {locked ? (
-              <span className="stats-locked-badge">⚔ Character Submitted</span>
+              <span className="stats-locked-badge">⚔ Submitted</span>
             ) : entryMode ? (
               <span className="stats-mode-tag manual-tag">✍ Manual</span>
             ) : statMethod === 'rolled' ? (
@@ -313,9 +323,23 @@ export default function StatsPanel({ authUser, initialStats, initialLocked, init
             </div>
           )}
 
+          {/* Fatigue toggle — always visible when locked, optional when unlocked */}
+          {!entryMode && (
+            <div className="fatigue-row">
+              <button
+                className={`fatigue-toggle${fatigued ? ' fatigued' : ''}`}
+                onClick={toggleFatigue}
+                title={fatigued ? 'Mark as not fatigued' : 'Mark as fatigued'}
+              >
+                <span className="fatigue-icon">{fatigued ? '😓' : '💪'}</span>
+                <span className="fatigue-label">{fatigued ? 'Fatigued' : 'Not Fatigued'}</span>
+              </button>
+            </div>
+          )}
+
           {/* Footer */}
           {locked ? (
-            <p className="stats-hint">Your character is submitted. The GM can adjust your stats during play.</p>
+            <p className="stats-hint">Submitted · +/− adjusts current values during play.</p>
           ) : entryMode ? null : (
             <>
               <p className="stats-hint">Click a max value to edit it. +/− adjusts current.</p>

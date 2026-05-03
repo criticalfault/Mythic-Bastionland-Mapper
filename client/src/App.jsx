@@ -11,6 +11,7 @@ import DicePanel from './components/DicePanel.jsx';
 import ChatPanel from './components/ChatPanel.jsx';
 import Lobby from './components/Lobby.jsx';
 import StatsPanel from './components/StatsPanel.jsx';
+import DayPhasePanel from './components/DayPhasePanel.jsx';
 import { trackSignIn, trackRealmCreated, trackRealmJoined, trackHexRevealed, trackPing } from './utils/analytics.js';
 
 function copyViaExecCommand(text) {
@@ -35,6 +36,8 @@ export default function App() {
   const [mode, setMode] = useState('build'); // 'build' | 'play'
   const [selectedTerrain, setSelectedTerrain] = useState('plains');
   const [selectedSpecialTile, setSelectedSpecialTile] = useState(null);
+  // selectedMyth: null = myth tool inactive, 'clear' = erase mode, 1-6 = place marker
+  const [selectedMyth, setSelectedMyth] = useState(null);
   const [pings, setPings] = useState([]);
   const [notification, setNotification] = useState('');
   const [diceOpen, setDiceOpen] = useState(true);
@@ -55,7 +58,9 @@ export default function App() {
   const [myCharLocked, setMyCharLocked] = useState(false);
   const [myCharName, setMyCharName] = useState('');
   const [myStatMethod, setMyStatMethod] = useState(null);
+  const [myCharFatigued, setMyCharFatigued] = useState(false);
   const [characters, setCharacters] = useState({}); // uid → { displayName, characterName, stats, locked, statMethod }
+  const [dayPhase, setDayPhase] = useState('morning');
 
   const notify = useCallback((msg) => {
     setNotification(msg);
@@ -110,7 +115,9 @@ export default function App() {
     setMyCharLocked(myChar?.locked || false);
     setMyCharName(myChar?.characterName || '');
     setMyStatMethod(myChar?.statMethod || null);
+    setMyCharFatigued(myChar?.fatigued || false);
     setCharacters(state.characters || {});
+    setDayPhase(state.dayPhase || 'morning');
     // Update URL to include room code for easy sharing
     const url = new URL(window.location.href);
     url.searchParams.set('room', inviteCode);
@@ -126,6 +133,7 @@ export default function App() {
 
     s.on('state:full', ({ state, isGM: gmConfirmed }) => {
       setGameState(structuredClone(state));
+      setDayPhase(state.dayPhase || 'morning');
       if (gmConfirmed !== undefined) setIsGM(gmConfirmed);
     });
 
@@ -133,7 +141,18 @@ export default function App() {
       setGameState(prev => {
         if (!prev) return prev;
         const next = structuredClone(prev);
-        next.map.hexes[key] = hex;
+        // Preserve existing myth value (not included in broadcast — GM-only)
+        const existingMyth = next.map.hexes[key]?.myth ?? null;
+        next.map.hexes[key] = { ...hex, myth: existingMyth };
+        return next;
+      });
+    });
+
+    s.on('tile:setMyth', ({ key, myth }) => {
+      setGameState(prev => {
+        if (!prev) return prev;
+        const next = structuredClone(prev);
+        if (next.map.hexes[key]) next.map.hexes[key].myth = myth ?? null;
         return next;
       });
     });
@@ -169,7 +188,13 @@ export default function App() {
       setGameState(prev => {
         if (!prev) return prev;
         const next = structuredClone(prev);
-        next.map.hexes = hexes;
+        // Preserve myth values on GM client (server strips myth for non-GMs,
+        // and sends full hexes to GMs which already include myth)
+        const merged = {};
+        for (const [k, h] of Object.entries(hexes)) {
+          merged[k] = { ...h, myth: h.myth !== undefined ? h.myth : (next.map.hexes[k]?.myth ?? null) };
+        }
+        next.map.hexes = merged;
         return next;
       });
     });
@@ -261,14 +286,17 @@ export default function App() {
       });
     });
 
-    s.on('charSheet:updated', ({ uid: updUid, displayName, characterName, stats, locked, statMethod }) => {
+    s.on('phase:set', ({ phase }) => setDayPhase(phase));
+
+    s.on('charSheet:updated', ({ uid: updUid, displayName, characterName, stats, locked, statMethod, fatigued }) => {
       if (updUid === auth.currentUser?.uid) {
         setMyCharStats(stats);
         setMyCharLocked(locked ?? false);
         setMyCharName(characterName ?? '');
         setMyStatMethod(statMethod ?? null);
+        setMyCharFatigued(fatigued ?? false);
       }
-      setCharacters(prev => ({ ...prev, [updUid]: { displayName, characterName: characterName ?? '', stats, locked: locked ?? false, statMethod: statMethod ?? null } }));
+      setCharacters(prev => ({ ...prev, [updUid]: { displayName, characterName: characterName ?? '', stats, locked: locked ?? false, statMethod: statMethod ?? null, fatigued: fatigued ?? false } }));
     });
 
     s.on('map:saved', ({ name }) => notify(`Map "${name}" saved.`));
@@ -284,6 +312,7 @@ export default function App() {
     return () => {
       s.off('state:full');
       s.off('tile:setTerrain');
+      s.off('tile:setMyth');
       s.off('tile:setLabel');
       s.off('tile:setSpecial');
       s.off('tile:reveal');
@@ -297,6 +326,7 @@ export default function App() {
       s.off('ping');
       s.off('dice:rolled');
       s.off('map:renamed');
+      s.off('phase:set');
       s.off('map:saved');
       s.off('state:saved');
       s.off('error:save');
@@ -306,28 +336,44 @@ export default function App() {
     };
   }, [currentRoom, notify]);
 
+  // --- Toolbar selection helpers (mutually exclusive: special tile ↔ myth) ---
+  const handleSpecialTileSelect = useCallback((tile) => {
+    setSelectedSpecialTile(tile);
+    if (tile !== null) setSelectedMyth(null); // named special clears myth tool
+  }, []);
+
+  const handleMythSelect = useCallback((myth) => {
+    setSelectedMyth(myth);
+    setSelectedSpecialTile(null); // any myth selection clears special tile
+  }, []);
+
   // --- GM actions ---
   const handleHexClick = useCallback((key, hex) => {
     if (!isGM) return;
     if (mode === 'build') {
-      // If a special tile is selected, left-click does nothing —
-      // the user is in "specials mode" and should be right-clicking.
-      if (selectedSpecialTile !== null) return;
+      // Myth tool or special tile selected → left-click does nothing in those modes
+      if (selectedSpecialTile !== null || selectedMyth !== null) return;
       socket.emit('tile:setTerrain', { key, terrain: selectedTerrain, label: hex?.label });
     } else {
       socket.emit('tile:reveal', { key });
       trackHexRevealed();
     }
-  }, [isGM, mode, selectedTerrain, selectedSpecialTile]);
+  }, [isGM, mode, selectedTerrain, selectedSpecialTile, selectedMyth]);
 
   const handleHexRightClick = useCallback((key) => {
     if (!isGM) return;
     if (mode === 'build') {
-      socket.emit('tile:setSpecialTile', { key, specialTile: selectedSpecialTile });
+      if (selectedMyth !== null) {
+        // Myth tool active — place or clear myth marker
+        const mythVal = selectedMyth === 'clear' ? null : selectedMyth;
+        socket.emit('tile:setMyth', { key, myth: mythVal });
+      } else {
+        socket.emit('tile:setSpecialTile', { key, specialTile: selectedSpecialTile });
+      }
     } else {
       socket.emit('tile:revealSpecial', { key });
     }
-  }, [isGM, mode, selectedSpecialTile]);
+  }, [isGM, mode, selectedSpecialTile, selectedMyth]);
 
   const handlePlayerMove = useCallback((id, q, r) => {
     if (!isGM) return;
@@ -344,6 +390,11 @@ export default function App() {
     socket.emit('ping', { q, r, color });
     trackPing();
   }, [isGM, rollerColor]);
+
+  const handleSetDayPhase = useCallback((phase) => {
+    if (!isGM) return;
+    socket.emit('phase:set', { phase });
+  }, [isGM]);
 
   const handleClearLog = useCallback(() => setDiceRolls([]), []);
 
@@ -498,7 +549,9 @@ export default function App() {
             selectedTerrain={selectedTerrain}
             onTerrainSelect={setSelectedTerrain}
             selectedSpecialTile={selectedSpecialTile}
-            onSpecialTileSelect={setSelectedSpecialTile}
+            onSpecialTileSelect={handleSpecialTileSelect}
+            selectedMyth={selectedMyth}
+            onMythSelect={handleMythSelect}
             players={gameState.players}
             map={gameState.map}
             characters={characters}
@@ -506,6 +559,11 @@ export default function App() {
         )}
 
         <div className="map-container">
+          <DayPhasePanel
+            dayPhase={dayPhase}
+            isGM={isGM}
+            onSetPhase={handleSetDayPhase}
+          />
           <HexMap
             map={gameState.map}
             players={gameState.players}
@@ -514,6 +572,7 @@ export default function App() {
             isGM={isGM}
             mode={mode}
             selectedSpecialTile={selectedSpecialTile}
+            selectedMyth={selectedMyth}
             onHexClick={handleHexClick}
             onHexRightClick={handleHexRightClick}
             onPlayerMove={handlePlayerMove}
@@ -527,7 +586,7 @@ export default function App() {
 
       <ChatPanel authUser={authUser} isGM={isGM} initialMessages={chatMessages} />
       {!isGM && authUser && (
-        <StatsPanel authUser={authUser} initialStats={myCharStats} initialLocked={myCharLocked} initialCharacterName={myCharName} initialStatMethod={myStatMethod} />
+        <StatsPanel authUser={authUser} initialStats={myCharStats} initialLocked={myCharLocked} initialCharacterName={myCharName} initialStatMethod={myStatMethod} initialFatigued={myCharFatigued} />
       )}
 
       {notification && (

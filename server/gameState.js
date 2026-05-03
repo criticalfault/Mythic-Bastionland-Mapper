@@ -22,6 +22,7 @@ function makeHex(q, r, terrain = 'empty') {
     revealed: false,
     special: '',
     specialRevealed: false,
+    myth: null,  // GM-only numbered marker (1–6), never sent to players
   };
 }
 
@@ -51,6 +52,7 @@ class GameState {
         players: savedState.players || [],
         partyMarker: savedState.partyMarker || { q: 0, r: 0 },
         characters: savedState.characters || {},
+        dayPhase: savedState.dayPhase || 'morning',
       };
     } else {
       const map = createEmptyMap();
@@ -59,6 +61,7 @@ class GameState {
         players: [],
         partyMarker: { q: Math.floor(map.cols / 2), r: Math.floor(map.rows / 2) },
         characters: {},
+        dayPhase: 'morning',
       };
     }
     this.undoStack = [];
@@ -137,6 +140,14 @@ class GameState {
     }
   }
 
+  setMythMarker(key, myth) {
+    if (!this.state.map.hexes[key]) return false;
+    // myth must be null or integer 1–6
+    const val = myth === null ? null : Math.max(1, Math.min(6, parseInt(myth) || 1));
+    this.state.map.hexes[key].myth = val;
+    return true;
+  }
+
   toggleSpecialReveal(key) {
     if (!this.state.map.hexes[key]) return false;
     this.state.map.hexes[key].specialRevealed = !this.state.map.hexes[key].specialRevealed;
@@ -167,7 +178,7 @@ class GameState {
     return true;
   }
 
-  updateCharacter(uid, displayName, stats, locked, characterName, statMethod) {
+  updateCharacter(uid, displayName, stats, locked, characterName, statMethod, fatigued) {
     const prev = this.state.characters[uid] || {};
     this.state.characters[uid] = {
       displayName,
@@ -176,12 +187,20 @@ class GameState {
       locked: locked !== undefined ? locked : (prev.locked || false),
       // statMethod: 'rolled' | 'manual' | null — preserve previous if not explicitly set
       statMethod: statMethod !== undefined ? statMethod : (prev.statMethod || null),
+      fatigued: fatigued !== undefined ? !!fatigued : (prev.fatigued || false),
     };
   }
 
   lockCharacter(uid) {
     if (!this.state.characters[uid]) return false;
     this.state.characters[uid].locked = true;
+    return true;
+  }
+
+  setDayPhase(phase) {
+    const VALID = new Set(['morning', 'afternoon', 'night']);
+    if (!VALID.has(phase)) return false;
+    this.state.dayPhase = phase;
     return true;
   }
 
@@ -192,6 +211,7 @@ class GameState {
       players: this.state.players,
       partyMarker: this.state.partyMarker,
       characters: this.state.characters,
+      dayPhase: this.state.dayPhase,
     };
   }
 

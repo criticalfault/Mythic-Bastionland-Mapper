@@ -14,7 +14,7 @@ function pointsAttr(corners) {
 }
 
 
-export default function HexTile({ hex, cx, cy, size, isGM, mode, selectedSpecialTile, onClick, onRightClick }) {
+export default function HexTile({ hex, cx, cy, size, isGM, mode, selectedSpecialTile, selectedMyth, onClick, onRightClick }) {
   const corners = hexCorners(cx, cy, size);
   const points = pointsAttr(corners);
   const clipId = `clip-${hex.q}-${hex.r}`;
@@ -42,8 +42,8 @@ export default function HexTile({ hex, cx, cy, size, isGM, mode, selectedSpecial
   let cursor = 'default';
   if (isGM) {
     if (mode === 'build') {
-      // Special tile selected → right-click mode only; signal left-click is inactive
-      cursor = selectedSpecialTile !== null ? 'context-menu' : 'crosshair';
+      // Special tile or myth selected → right-click mode; left-click is inactive
+      cursor = (selectedSpecialTile !== null || selectedMyth !== null) ? 'context-menu' : 'crosshair';
     } else {
       cursor = 'pointer';
     }
@@ -121,6 +121,31 @@ export default function HexTile({ hex, cx, cy, size, isGM, mode, selectedSpecial
           strokeWidth={isRevealed ? 2 : 1}
           opacity={0.6}
         />
+      )}
+
+      {/* Myth marker — GM only, never sent to players */}
+      {isGM && hex.myth != null && (
+        <g style={{ pointerEvents: 'none' }}>
+          <circle
+            cx={cx - size * 0.38}
+            cy={cy - size * 0.44}
+            r={size * 0.19}
+            fill="#6b3a2a"
+            stroke="#3d1f12"
+            strokeWidth={1.5}
+            opacity={0.92}
+          />
+          <text
+            x={cx - size * 0.38}
+            y={cy - size * 0.44}
+            textAnchor="middle"
+            dominantBaseline="central"
+            fontSize={size * 0.22}
+            fontWeight="bold"
+            fill="#f5e6c8"
+            style={{ fontFamily: 'Crimson Text, serif', userSelect: 'none' }}
+          >{hex.myth}</text>
+        </g>
       )}
     </g>
   );

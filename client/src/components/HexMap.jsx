@@ -37,7 +37,7 @@ const PAD = HEX_SIZE;
 
 export default function HexMap({
   map, players, partyMarker, pings,
-  isGM, mode, selectedSpecialTile,
+  isGM, mode, selectedSpecialTile, selectedMyth,
   onHexClick, onHexRightClick,
   onPlayerMove, onPartyMove, onPlayerPing,
 }) {
@@ -98,8 +98,8 @@ export default function HexMap({
       e.preventDefault();
       return;
     }
-    // Left-click in build mode = start painting (not when a special tile is selected)
-    if (e.button === 0 && isGM && mode === 'build' && selectedSpecialTile === null) {
+    // Left-click in build mode = start painting (not when special tile or myth is selected)
+    if (e.button === 0 && isGM && mode === 'build' && selectedSpecialTile === null && selectedMyth === null) {
       isPainting.current = true;
       lastPaintedKey.current = null;
       mouseDownPos.current = { x: e.clientX, y: e.clientY };
@@ -123,7 +123,7 @@ export default function HexMap({
       return;
     }
     // Drag-to-paint in build mode — only after moving >8px from click origin
-    if (isPainting.current && isGM && mode === 'build' && selectedSpecialTile === null) {
+    if (isPainting.current && isGM && mode === 'build' && selectedSpecialTile === null && selectedMyth === null) {
       if (mouseDownPos.current) {
         const dx = e.clientX - mouseDownPos.current.x;
         const dy = e.clientY - mouseDownPos.current.y;
@@ -242,6 +242,7 @@ export default function HexMap({
             isGM={isGM}
             mode={mode}
             selectedSpecialTile={selectedSpecialTile}
+            selectedMyth={selectedMyth}
             onClick={handleHexClick}
             onRightClick={handleHexRightClick}
           />
