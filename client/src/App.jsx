@@ -437,6 +437,7 @@ export default function App() {
       <header className="app-header">
         <h1 className="app-title">Mythic Bastionland</h1>
         <span className="map-name">{gameState.map.name}</span>
+        <DayPhase dayPhase={dayPhase} isGM={isGM} />
         <div className="header-right">
           {isGM && (
             <div className="mode-toggle">
@@ -527,7 +528,6 @@ export default function App() {
         )}
 
         <div className="map-container">
-          <DayPhase dayPhase={dayPhase} isGM={isGM} />
           <HexMap
             map={gameState.map}
             players={gameState.players}
