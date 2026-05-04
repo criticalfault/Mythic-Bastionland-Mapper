@@ -11,7 +11,7 @@ import DicePanel from './components/DicePanel.jsx';
 import ChatPanel from './components/ChatPanel.jsx';
 import Lobby from './components/Lobby.jsx';
 import StatsPanel from './components/StatsPanel.jsx';
-import DayPhasePanel from './components/DayPhasePanel.jsx';
+import DayPhase from './components/DayPhase.jsx';
 import { trackSignIn, trackRealmCreated, trackRealmJoined, trackHexRevealed, trackPing } from './utils/analytics.js';
 
 function copyViaExecCommand(text) {
@@ -30,10 +30,10 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
 
   const [connected, setConnected] = useState(false);
-  const [currentRoom, setCurrentRoom] = useState(null); // { roomId, inviteCode, realmName, isGM }
-  const [gameState, setGameState] = useState(null); // { map, players, partyMarker }
+  const [currentRoom, setCurrentRoom] = useState(null);
+  const [gameState, setGameState] = useState(null);
   const [isGM, setIsGM] = useState(false);
-  const [mode, setMode] = useState('build'); // 'build' | 'play'
+  const [mode, setMode] = useState('build');
   const [selectedTerrain, setSelectedTerrain] = useState('plains');
   const [selectedSpecialTile, setSelectedSpecialTile] = useState(null);
   // selectedMyth: null = myth tool inactive, 'clear' = erase mode, 1-6 = place marker
@@ -52,6 +52,7 @@ export default function App() {
   const updateRollerIdentity = (name, color) => {
     localStorage.setItem('mb-dice-id', JSON.stringify({ name, color }));
   };
+
   const [showInviteCode, setShowInviteCode] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [myCharStats, setMyCharStats] = useState(null);
@@ -59,7 +60,7 @@ export default function App() {
   const [myCharName, setMyCharName] = useState('');
   const [myStatMethod, setMyStatMethod] = useState(null);
   const [myCharFatigued, setMyCharFatigued] = useState(false);
-  const [characters, setCharacters] = useState({}); // uid → { displayName, characterName, stats, locked, statMethod }
+  const [characters, setCharacters] = useState({});
   const [dayPhase, setDayPhase] = useState('morning');
 
   const notify = useCallback((msg) => {
@@ -71,9 +72,7 @@ export default function App() {
   useEffect(() => {
     return onAuthStateChanged(auth, async (user) => {
       setAuthLoading(false);
-      if (user) {
-        await createSocket();
-      }
+      if (user) await createSocket();
       setAuthUser(user);
     });
   }, []);
@@ -86,8 +85,6 @@ export default function App() {
     if (s.connected) setConnected(true);
     s.on('connect', () => {
       setConnected(true);
-      // If we reconnect after a server restart, room state is gone server-side.
-      // Drop back to lobby so the user can re-join cleanly.
       setCurrentRoom(null);
       setGameState(null);
       setIsGM(false);
@@ -108,7 +105,6 @@ export default function App() {
     setIsGM(gmFlag);
     setGameState(structuredClone(state));
     setChatMessages(chatLog || []);
-    // Restore this user's character stats if they've set them before
     const myUid = auth.currentUser?.uid;
     const myChar = myUid ? state.characters?.[myUid] : null;
     setMyCharStats(myChar?.stats || null);
@@ -118,7 +114,6 @@ export default function App() {
     setMyCharFatigued(myChar?.fatigued || false);
     setCharacters(state.characters || {});
     setDayPhase(state.dayPhase || 'morning');
-    // Update URL to include room code for easy sharing
     const url = new URL(window.location.href);
     url.searchParams.set('room', inviteCode);
     window.history.replaceState({}, '', url.toString());
@@ -141,7 +136,6 @@ export default function App() {
       setGameState(prev => {
         if (!prev) return prev;
         const next = structuredClone(prev);
-        // Preserve existing myth value (not included in broadcast — GM-only)
         const existingMyth = next.map.hexes[key]?.myth ?? null;
         next.map.hexes[key] = { ...hex, myth: existingMyth };
         return next;
@@ -188,8 +182,6 @@ export default function App() {
       setGameState(prev => {
         if (!prev) return prev;
         const next = structuredClone(prev);
-        // Preserve myth values on GM client (server strips myth for non-GMs,
-        // and sends full hexes to GMs which already include myth)
         const merged = {};
         for (const [k, h] of Object.entries(hexes)) {
           merged[k] = { ...h, myth: h.myth !== undefined ? h.myth : (next.map.hexes[k]?.myth ?? null) };
@@ -286,7 +278,7 @@ export default function App() {
       });
     });
 
-    s.on('phase:set', ({ phase }) => setDayPhase(phase));
+    s.on('time:updated', ({ dayPhase: phase }) => setDayPhase(phase));
 
     s.on('charSheet:updated', ({ uid: updUid, displayName, characterName, stats, locked, statMethod, fatigued }) => {
       if (updUid === auth.currentUser?.uid) {
@@ -296,13 +288,16 @@ export default function App() {
         setMyStatMethod(statMethod ?? null);
         setMyCharFatigued(fatigued ?? false);
       }
-      setCharacters(prev => ({ ...prev, [updUid]: { displayName, characterName: characterName ?? '', stats, locked: locked ?? false, statMethod: statMethod ?? null, fatigued: fatigued ?? false } }));
+      setCharacters(prev => ({
+        ...prev,
+        [updUid]: { displayName, characterName: characterName ?? '', stats, locked: locked ?? false, statMethod: statMethod ?? null, fatigued: fatigued ?? false },
+      }));
     });
 
-    s.on('map:saved', ({ name }) => notify(`Map "${name}" saved.`));
+    s.on('map:saved',   ({ name }) => notify(`Map "${name}" saved.`));
     s.on('state:saved', ({ name }) => notify(`Game state "${name}" saved.`));
-    s.on('error:save', ({ message }) => notify(`Save error: ${message}`));
-    s.on('error:load', ({ message }) => notify(`Load error: ${message}`));
+    s.on('error:save',  ({ message }) => notify(`Save error: ${message}`));
+    s.on('error:load',  ({ message }) => notify(`Load error: ${message}`));
 
     s.on('room:deleted', () => {
       handleLeaveRoom();
@@ -326,12 +321,12 @@ export default function App() {
       s.off('ping');
       s.off('dice:rolled');
       s.off('map:renamed');
-      s.off('phase:set');
+      s.off('time:updated');
+      s.off('charSheet:updated');
       s.off('map:saved');
       s.off('state:saved');
       s.off('error:save');
       s.off('error:load');
-      s.off('charSheet:updated');
       s.off('room:deleted');
     };
   }, [currentRoom, notify]);
@@ -339,19 +334,18 @@ export default function App() {
   // --- Toolbar selection helpers (mutually exclusive: special tile ↔ myth) ---
   const handleSpecialTileSelect = useCallback((tile) => {
     setSelectedSpecialTile(tile);
-    if (tile !== null) setSelectedMyth(null); // named special clears myth tool
+    if (tile !== null) setSelectedMyth(null);
   }, []);
 
   const handleMythSelect = useCallback((myth) => {
     setSelectedMyth(myth);
-    setSelectedSpecialTile(null); // any myth selection clears special tile
+    setSelectedSpecialTile(null);
   }, []);
 
   // --- GM actions ---
   const handleHexClick = useCallback((key, hex) => {
     if (!isGM) return;
     if (mode === 'build') {
-      // Myth tool or special tile selected → left-click does nothing in those modes
       if (selectedSpecialTile !== null || selectedMyth !== null) return;
       socket.emit('tile:setTerrain', { key, terrain: selectedTerrain, label: hex?.label });
     } else {
@@ -364,9 +358,7 @@ export default function App() {
     if (!isGM) return;
     if (mode === 'build') {
       if (selectedMyth !== null) {
-        // Myth tool active — place or clear myth marker
-        const mythVal = selectedMyth === 'clear' ? null : selectedMyth;
-        socket.emit('tile:setMyth', { key, myth: mythVal });
+        socket.emit('tile:setMyth', { key, myth: selectedMyth === 'clear' ? null : selectedMyth });
       } else {
         socket.emit('tile:setSpecialTile', { key, specialTile: selectedSpecialTile });
       }
@@ -390,11 +382,6 @@ export default function App() {
     socket.emit('ping', { q, r, color });
     trackPing();
   }, [isGM, rollerColor]);
-
-  const handleSetDayPhase = useCallback((phase) => {
-    if (!isGM) return;
-    socket.emit('phase:set', { phase });
-  }, [isGM]);
 
   const handleClearLog = useCallback(() => setDiceRolls([]), []);
 
@@ -440,7 +427,6 @@ export default function App() {
     );
   }
 
-  // Show Lobby if not in a room yet
   if (!currentRoom || !gameState) {
     return <Lobby authUser={authUser} onJoined={handleRoomJoined} onSignOut={() => signOut(auth)} />;
   }
@@ -454,24 +440,14 @@ export default function App() {
         <div className="header-right">
           {isGM && (
             <div className="mode-toggle">
-              <button
-                className={mode === 'build' ? 'active' : ''}
-                onClick={() => setMode('build')}
-              >Build Map</button>
-              <button
-                className={mode === 'play' ? 'active' : ''}
-                onClick={() => setMode('play')}
-              >Play Mode</button>
+              <button className={mode === 'build' ? 'active' : ''} onClick={() => setMode('build')}>Build Map</button>
+              <button className={mode === 'play'  ? 'active' : ''} onClick={() => setMode('play')}>Play Mode</button>
             </div>
           )}
 
           {isGM && currentRoom.inviteCode && (
             <div className="invite-code-wrap">
-              <button
-                className="invite-code-btn"
-                onClick={() => setShowInviteCode(v => !v)}
-                title="Show invite code"
-              >
+              <button className="invite-code-btn" onClick={() => setShowInviteCode(v => !v)} title="Show invite code">
                 🔑 {showInviteCode ? currentRoom.inviteCode : '••••••'}
               </button>
               {showInviteCode && (
@@ -484,11 +460,7 @@ export default function App() {
                     const text = url.toString();
                     const doNotify = () => notify('Invite link copied!');
                     if (navigator.clipboard?.writeText) {
-                      navigator.clipboard.writeText(text).then(doNotify).catch(() => {
-                        // Clipboard API blocked — fall back to execCommand
-                        copyViaExecCommand(text);
-                        doNotify();
-                      });
+                      navigator.clipboard.writeText(text).then(doNotify).catch(() => { copyViaExecCommand(text); doNotify(); });
                     } else {
                       copyViaExecCommand(text);
                       doNotify();
@@ -529,11 +501,7 @@ export default function App() {
             title="Dice Roller"
           >🎲</button>
 
-          <button
-            className="btn-secondary btn-leave"
-            onClick={handleLeaveRoom}
-            title="Back to lobby"
-          >⬅ Lobby</button>
+          <button className="btn-secondary btn-leave" onClick={handleLeaveRoom} title="Back to lobby">⬅ Lobby</button>
 
           <button className="btn-signout" onClick={() => { if (confirm('Sign out? You will leave the current session.')) signOut(auth); }} title="Sign out">
             {authUser.displayName?.split(' ')[0] || 'Sign out'} ↩
@@ -559,11 +527,7 @@ export default function App() {
         )}
 
         <div className="map-container">
-          <DayPhasePanel
-            dayPhase={dayPhase}
-            isGM={isGM}
-            onSetPhase={handleSetDayPhase}
-          />
+          <DayPhase dayPhase={dayPhase} isGM={isGM} />
           <HexMap
             map={gameState.map}
             players={gameState.players}
@@ -586,12 +550,17 @@ export default function App() {
 
       <ChatPanel authUser={authUser} isGM={isGM} initialMessages={chatMessages} />
       {!isGM && authUser && (
-        <StatsPanel authUser={authUser} initialStats={myCharStats} initialLocked={myCharLocked} initialCharacterName={myCharName} initialStatMethod={myStatMethod} initialFatigued={myCharFatigued} />
+        <StatsPanel
+          authUser={authUser}
+          initialStats={myCharStats}
+          initialLocked={myCharLocked}
+          initialCharacterName={myCharName}
+          initialStatMethod={myStatMethod}
+          initialFatigued={myCharFatigued}
+        />
       )}
 
-      {notification && (
-        <div className="notification">{notification}</div>
-      )}
+      {notification && <div className="notification">{notification}</div>}
 
       {!isGM && (
         <div className="player-hint">Click any hex to ping it for the group &nbsp;·&nbsp; Hold <kbd>Alt</kbd> + drag to pan the map</div>

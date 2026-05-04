@@ -571,16 +571,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // ── DAY PHASE (GM only) ──
-
-  socket.on('phase:set', ({ phase }) => {
-    if (!isGMSocket()) return;
-    const g = gs(); if (!g) return;
-    if (!g.setDayPhase(phase)) return;
-    broadcastRoom('phase:set', { phase });
-    scheduleAutoSave(roomId());
-  });
-
   // ── UNDO (GM only) ──
 
   socket.on('tile:setMyth', ({ key, myth }) => {
@@ -598,6 +588,14 @@ io.on('connection', (socket) => {
       io.to(sid).emit('tile:setMyth', { key, myth: hex.myth });
     }
     scheduleAutoSave(rid);
+  });
+
+  socket.on('time:set', ({ phase }) => {
+    if (!isGMSocket()) return;
+    const g = gs(); if (!g) return;
+    if (!g.setDayPhase(phase)) return;
+    broadcastRoom('time:updated', { dayPhase: phase });
+    scheduleAutoSave(roomId());
   });
 
   socket.on('map:undo', () => {
