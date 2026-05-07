@@ -14,7 +14,7 @@ function pointsAttr(corners) {
 }
 
 
-export default function HexTile({ hex, cx, cy, size, isGM, mode, selectedSpecialTile, selectedMyth, onClick, onRightClick }) {
+export default function HexTile({ hex, cx, cy, size, isGM, mode, selectedSpecialTile, selectedMyth, onClick, onRightClick, hasSite, onSiteClick, note, onHoverStart, onHoverEnd }) {
   const corners = hexCorners(cx, cy, size);
   const points = pointsAttr(corners);
   const clipId = `clip-${hex.q}-${hex.r}`;
@@ -52,7 +52,7 @@ export default function HexTile({ hex, cx, cy, size, isGM, mode, selectedSpecial
   }
 
   return (
-    <g className="hex-tile" onClick={handleClick} onContextMenu={handleRightClick} style={{ cursor }}>
+    <g className="hex-tile" onClick={handleClick} onContextMenu={handleRightClick} style={{ cursor }} onMouseEnter={e => onHoverStart && onHoverStart(hex, e)} onMouseLeave={() => onHoverEnd && onHoverEnd()}>
       <defs>
         <clipPath id={clipId}>
           <polygon points={points} />
@@ -121,6 +121,59 @@ export default function HexTile({ hex, cx, cy, size, isGM, mode, selectedSpecial
           strokeWidth={isRevealed ? 2 : 1}
           opacity={0.6}
         />
+      )}
+
+      {/* Site marker — visible to GM always, and to players when hex is revealed */}
+      {hasSite && (isGM || !showFog) && (
+        <g
+          style={{ cursor: 'pointer', pointerEvents: 'all' }}
+          onClick={e => { e.stopPropagation(); e.preventDefault(); onSiteClick && onSiteClick(); }}
+        >
+          <circle
+            cx={cx + size * 0.38}
+            cy={cy - size * 0.44}
+            r={size * 0.19}
+            fill="#1e4a3a"
+            stroke="#3a9a6a"
+            strokeWidth={1.5}
+            opacity={0.92}
+          />
+          <text
+            x={cx + size * 0.38}
+            y={cy - size * 0.44}
+            textAnchor="middle"
+            dominantBaseline="central"
+            fontSize={size * 0.21}
+            fontWeight="bold"
+            fill="#6adaaa"
+            style={{ fontFamily: 'Cinzel, serif', userSelect: 'none', pointerEvents: 'none' }}
+          >S</text>
+        </g>
+      )}
+
+      {/* Note marker — visible to GM always, and to players when hex is revealed */}
+      {note && (isGM || !showFog) && (
+        <g style={{ pointerEvents: 'none' }}>
+          <circle
+            cx={cx + size * 0.38}
+            cy={cy + size * 0.44}
+            r={size * 0.19}
+            fill="#1e2e4a"
+            stroke="#3a6a9a"
+            strokeWidth={1.5}
+            opacity={0.92}
+          />
+          <text
+            x={cx + size * 0.38}
+            y={cy + size * 0.44}
+            textAnchor="middle"
+            dominantBaseline="central"
+            fontSize={size * 0.21}
+            fontWeight="bold"
+            fill="#6aaadd"
+            style={{ fontFamily: 'Cinzel, serif', userSelect: 'none' }}
+          >N</text>
+        </g>
       )}
 
       {/* Myth marker — GM only, never sent to players */}

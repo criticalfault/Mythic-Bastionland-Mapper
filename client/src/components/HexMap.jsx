@@ -40,6 +40,9 @@ export default function HexMap({
   isGM, mode, selectedSpecialTile, selectedMyth,
   onHexClick, onHexRightClick,
   onPlayerMove, onPartyMove, onPlayerPing,
+  sites, onSiteClick,
+  onHexHover, onHexHoverEnd,
+  isPickingHex,
 }) {
   const svgRef = useRef(null);
 
@@ -208,7 +211,7 @@ export default function HexMap({
       ref={svgRef}
       className="hex-map"
       viewBox={vb}
-      style={{ width: '100%', height: '100%', display: 'block' }}
+      style={{ width: '100%', height: '100%', display: 'block', cursor: isPickingHex ? 'crosshair' : undefined }}
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
@@ -245,6 +248,11 @@ export default function HexMap({
             selectedMyth={selectedMyth}
             onClick={handleHexClick}
             onRightClick={handleHexRightClick}
+            hasSite={!!(sites && sites[key])}
+            onSiteClick={() => onSiteClick && onSiteClick(key)}
+            note={hex.note || ''}
+            onHoverStart={onHexHover}
+            onHoverEnd={onHexHoverEnd}
           />
         );
       })}

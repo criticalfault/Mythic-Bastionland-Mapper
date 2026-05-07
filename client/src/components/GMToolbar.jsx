@@ -25,8 +25,14 @@ export default function GMToolbar({
   selectedSpecialTile, onSpecialTileSelect,
   selectedMyth, onMythSelect,
   players, map, characters,
+  sites, onOpenSite,
+  onPickHex, isPickingHex,
 }) {
   const [tab, setTab] = useState('terrain');
+  const [newSiteKey, setNewSiteKey] = useState('');
+  const [mythNoteEdits, setMythNoteEdits] = useState({}); // key → string
+  const [noteHexKey, setNoteHexKey] = useState('');
+  const [noteText, setNoteText] = useState('');
   const [newPlayerName, setNewPlayerName] = useState('');
   const [newPlayerColor, setNewPlayerColor] = useState(PLAYER_COLORS[0]);
   const [saveName, setSaveName] = useState('');
@@ -91,6 +97,8 @@ export default function GMToolbar({
         <button className={tab === 'players' ? 'active' : ''} onClick={() => setTab('players')}>Players</button>
         <button className={tab === 'party' ? 'active' : ''} onClick={() => setTab('party')}>Party</button>
         <button className={tab === 'files' ? 'active' : ''} onClick={() => { setTab('files'); requestFileList(); }}>Files</button>
+        <button className={tab === 'sites' ? 'active' : ''} onClick={() => setTab('sites')}>Sites</button>
+        <button className={tab === 'notes' ? 'active' : ''} onClick={() => setTab('notes')}>Notes</button>
       </div>
 
       <div className="toolbar-content">
@@ -294,6 +302,55 @@ export default function GMToolbar({
           </div>
         )}
 
+        {/* ── SITES TAB ── */}
+        {tab === 'sites' && (
+          <div className="sites-panel">
+            <div className="toolbar-section">
+              <p className="panel-hint">Pick or type a hex key to create or open a site.</p>
+              <div className="btn-row">
+                <input
+                  className="text-input"
+                  placeholder="Hex key…"
+                  value={newSiteKey}
+                  onChange={e => setNewSiteKey(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && newSiteKey.trim()) {
+                      onOpenSite(newSiteKey.trim());
+                      setNewSiteKey('');
+                    }
+                  }}
+                  style={{ flex: 1 }}
+                />
+                <button
+                  className={`btn-secondary${isPickingHex ? ' active' : ''}`}
+                  title={isPickingHex ? 'Click a hex on the map…' : 'Pick hex by clicking map'}
+                  onClick={() => onPickHex(key => setNewSiteKey(key))}
+                  style={{ flexShrink: 0, whiteSpace: 'nowrap' }}
+                >{isPickingHex ? '🎯 …' : '🎯 Pick'}</button>
+                <button
+                  className="btn-primary"
+                  onClick={() => {
+                    if (!newSiteKey.trim()) return;
+                    onOpenSite(newSiteKey.trim());
+                    setNewSiteKey('');
+                  }}
+                >Open</button>
+              </div>
+            </div>
+            <div className="toolbar-section">
+              <label className="field-label">Sites in Realm</label>
+              {Object.keys(sites || {}).length === 0 && <p className="empty-hint">No sites yet.</p>}
+              {Object.entries(sites || {}).map(([key, s]) => (
+                <div key={key} className="file-row">
+                  <button className="file-btn" onClick={() => onOpenSite(key)}>
+                    ⚑ {s.name} <span className="file-date">({key})</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* ── FILES TAB ── */}
         {tab === 'files' && (
           <div className="files-panel">
@@ -389,6 +446,110 @@ export default function GMToolbar({
             </div>
           </div>
         )}
+        {/* ── NOTES TAB ── */}
+        {tab === 'notes' && (
+          <div className="notes-panel">
+            <div className="toolbar-section">
+              <label className="field-label">⚑ Myth Notes <span className="myth-gm-tag">GM only</span></label>
+              {Object.entries(map.hexes).filter(([, h]) => h.myth != null).length === 0 && (
+                <p className="empty-hint">No myth markers placed yet.</p>
+              )}
+              {Object.entries(map.hexes)
+                .filter(([, h]) => h.myth != null)
+                .sort(([, a], [, b]) => a.myth - b.myth)
+                .map(([key, h]) => {
+                  const draft = mythNoteEdits[key] !== undefined ? mythNoteEdits[key] : (h.mythNote || '');
+                  return (
+                    <div key={key} className="myth-note-entry">
+                      <div className="myth-note-header">
+                        <span className="myth-note-badge">{h.myth}</span>
+                        <span className="myth-note-key">hex {key}</span>
+                        <span className="myth-note-label">{h.label || ''}</span>
+                      </div>
+                      <textarea
+                        className="myth-note-textarea"
+                        placeholder="GM note for this myth…"
+                        value={draft}
+                        rows={2}
+                        onChange={e => setMythNoteEdits(prev => ({ ...prev, [key]: e.target.value }))}
+                        onBlur={() => {
+                          socket.emit('tile:setMythNote', { key, mythNote: draft });
+                          setMythNoteEdits(prev => { const n = { ...prev }; delete n[key]; return n; });
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+            </div>
+            <div className="toolbar-section">
+              <label className="field-label">📝 Hex Notes <span className="myth-gm-tag">visible to players</span></label>
+              <p className="panel-hint">Players see this note when hovering a revealed hex.</p>
+              <div className="btn-row" style={{ marginBottom: 6 }}>
+                <input
+                  className="text-input"
+                  placeholder="Hex key…"
+                  value={noteHexKey}
+                  onChange={e => setNoteHexKey(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <button
+                  className={`btn-secondary${isPickingHex ? ' active' : ''}`}
+                  title={isPickingHex ? 'Click a hex on the map…' : 'Pick hex by clicking map'}
+                  onClick={() => onPickHex(key => setNoteHexKey(key))}
+                  style={{ flexShrink: 0, whiteSpace: 'nowrap' }}
+                >
+                  {isPickingHex ? '🎯 …' : '🎯 Pick'}
+                </button>
+              </div>
+              <textarea
+                className="myth-note-textarea"
+                placeholder="Note text…"
+                value={noteText}
+                rows={3}
+                onChange={e => setNoteText(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && e.ctrlKey) {
+                    if (!noteHexKey.trim()) return;
+                    socket.emit('tile:setNote', { key: noteHexKey.trim(), note: noteText });
+                    setNoteHexKey(''); setNoteText('');
+                  }
+                }}
+              />
+              <button
+                className="btn-primary full-width"
+                onClick={() => {
+                  if (!noteHexKey.trim()) return;
+                  socket.emit('tile:setNote', { key: noteHexKey.trim(), note: noteText });
+                  setNoteHexKey(''); setNoteText('');
+                }}
+              >Save Note</button>
+              {Object.entries(map.hexes).filter(([, h]) => h.note).length > 0 && (
+                <div style={{ marginTop: 8 }}>
+                  <label className="field-label">Existing Notes</label>
+                  {Object.entries(map.hexes)
+                    .filter(([, h]) => h.note)
+                    .map(([key, h]) => (
+                      <div key={key} className="hex-note-list-entry">
+                        <span className="hex-note-list-key">{key}</span>
+                        <span className="hex-note-list-text">{h.note}</span>
+                        <button
+                          className="btn-danger-sm"
+                          title="Edit"
+                          onClick={() => { setNoteHexKey(key); setNoteText(h.note); }}
+                        >✎</button>
+                        <button
+                          className="btn-danger-sm"
+                          title="Delete"
+                          onClick={() => socket.emit('tile:setNote', { key, note: '' })}
+                        >✕</button>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
       </div>
 
       {/* New Map Dialog */}

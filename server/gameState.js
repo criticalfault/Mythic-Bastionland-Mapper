@@ -23,6 +23,8 @@ function makeHex(q, r, terrain = 'empty') {
     special: '',
     specialRevealed: false,
     myth: null,  // GM-only numbered marker (1–6), never sent to players
+    note: '',       // public — visible to all on hover
+    mythNote: '',   // GM-only — stripped before sending to players
   };
 }
 
@@ -53,6 +55,7 @@ class GameState {
         partyMarker: savedState.partyMarker || { q: 0, r: 0 },
         characters: savedState.characters || {},
         dayPhase: savedState.dayPhase || 'morning',
+        sites: savedState.sites || {},
       };
     } else {
       const map = createEmptyMap();
@@ -62,6 +65,7 @@ class GameState {
         partyMarker: { q: Math.floor(map.cols / 2), r: Math.floor(map.rows / 2) },
         characters: {},
         dayPhase: 'morning',
+        sites: {},
       };
     }
     this.undoStack = [];
@@ -204,6 +208,30 @@ class GameState {
     return true;
   }
 
+  setSite(hexKey, site) {
+    if (!hexKey || !site) return false;
+    this.state.sites[hexKey] = site;
+    return true;
+  }
+
+  deleteSite(hexKey) {
+    if (!this.state.sites[hexKey]) return false;
+    delete this.state.sites[hexKey];
+    return true;
+  }
+
+  setHexNote(key, note) {
+    if (!this.state.map.hexes[key]) return false;
+    this.state.map.hexes[key].note = String(note || '').slice(0, 500);
+    return true;
+  }
+
+  setHexMythNote(key, mythNote) {
+    if (!this.state.map.hexes[key]) return false;
+    this.state.map.hexes[key].mythNote = String(mythNote || '').slice(0, 500);
+    return true;
+  }
+
   // Snapshot for Firestore auto-save
   toSnapshot() {
     return {
@@ -212,6 +240,7 @@ class GameState {
       partyMarker: this.state.partyMarker,
       characters: this.state.characters,
       dayPhase: this.state.dayPhase,
+      sites: this.state.sites,
     };
   }
 

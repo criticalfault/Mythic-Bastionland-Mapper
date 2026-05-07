@@ -12,6 +12,7 @@ import ChatPanel from './components/ChatPanel.jsx';
 import Lobby from './components/Lobby.jsx';
 import StatsPanel from './components/StatsPanel.jsx';
 import DayPhase from './components/DayPhase.jsx';
+import SiteModal from './components/SiteModal.jsx';
 import { trackSignIn, trackRealmCreated, trackRealmJoined, trackHexRevealed, trackPing } from './utils/analytics.js';
 
 function copyViaExecCommand(text) {
@@ -62,6 +63,10 @@ export default function App() {
   const [myCharFatigued, setMyCharFatigued] = useState(false);
   const [characters, setCharacters] = useState({});
   const [dayPhase, setDayPhase] = useState('morning');
+  const [sites, setSites] = useState({});
+  const [siteModalHexKey, setSiteModalHexKey] = useState(null);
+  const [hoveredNote, setHoveredNote] = useState(null); // { text, x, y } | null
+  const [hexPickCallback, setHexPickCallback] = useState(null); // fn(key) | null — set when GM is picking a hex
 
   const notify = useCallback((msg) => {
     setNotification(msg);
@@ -114,6 +119,7 @@ export default function App() {
     setMyCharFatigued(myChar?.fatigued || false);
     setCharacters(state.characters || {});
     setDayPhase(state.dayPhase || 'morning');
+    setSites(state.sites || {});
     const url = new URL(window.location.href);
     url.searchParams.set('room', inviteCode);
     window.history.replaceState({}, '', url.toString());
@@ -129,6 +135,7 @@ export default function App() {
     s.on('state:full', ({ state, isGM: gmConfirmed }) => {
       setGameState(structuredClone(state));
       setDayPhase(state.dayPhase || 'morning');
+      setSites(state.sites || {});
       if (gmConfirmed !== undefined) setIsGM(gmConfirmed);
     });
 
@@ -137,7 +144,8 @@ export default function App() {
         if (!prev) return prev;
         const next = structuredClone(prev);
         const existingMyth = next.map.hexes[key]?.myth ?? null;
-        next.map.hexes[key] = { ...hex, myth: existingMyth };
+        const existingMythNote = next.map.hexes[key]?.mythNote ?? '';
+        next.map.hexes[key] = { ...hex, myth: existingMyth, mythNote: existingMythNote };
         return next;
       });
     });
@@ -184,7 +192,11 @@ export default function App() {
         const next = structuredClone(prev);
         const merged = {};
         for (const [k, h] of Object.entries(hexes)) {
-          merged[k] = { ...h, myth: h.myth !== undefined ? h.myth : (next.map.hexes[k]?.myth ?? null) };
+          merged[k] = {
+            ...h,
+            myth: h.myth !== undefined ? h.myth : (next.map.hexes[k]?.myth ?? null),
+            mythNote: h.mythNote !== undefined ? h.mythNote : (next.map.hexes[k]?.mythNote ?? ''),
+          };
         }
         next.map.hexes = merged;
         return next;
@@ -294,6 +306,26 @@ export default function App() {
       }));
     });
 
+    s.on('site:updated', ({ hexKey, site }) => setSites(prev => ({ ...prev, [hexKey]: site })));
+    s.on('site:deleted', ({ hexKey }) => setSites(prev => { const n = { ...prev }; delete n[hexKey]; return n; }));
+
+    s.on('tile:noteUpdated', ({ key, note }) => {
+      setGameState(prev => {
+        if (!prev?.map?.hexes?.[key]) return prev;
+        const next = structuredClone(prev);
+        next.map.hexes[key].note = note;
+        return next;
+      });
+    });
+    s.on('tile:mythNoteUpdated', ({ key, mythNote }) => {
+      setGameState(prev => {
+        if (!prev?.map?.hexes?.[key]) return prev;
+        const next = structuredClone(prev);
+        next.map.hexes[key].mythNote = mythNote;
+        return next;
+      });
+    });
+
     s.on('map:saved',   ({ name }) => notify(`Map "${name}" saved.`));
     s.on('state:saved', ({ name }) => notify(`Game state "${name}" saved.`));
     s.on('error:save',  ({ message }) => notify(`Save error: ${message}`));
@@ -323,6 +355,10 @@ export default function App() {
       s.off('map:renamed');
       s.off('time:updated');
       s.off('charSheet:updated');
+      s.off('site:updated');
+      s.off('site:deleted');
+      s.off('tile:noteUpdated');
+      s.off('tile:mythNoteUpdated');
       s.off('map:saved');
       s.off('state:saved');
       s.off('error:save');
@@ -343,7 +379,16 @@ export default function App() {
   }, []);
 
   // --- GM actions ---
+  const handlePickHex = useCallback((cb) => {
+    setHexPickCallback(() => cb); // store as function (useState setter wraps fns, so use () => cb)
+  }, []);
+
   const handleHexClick = useCallback((key, hex) => {
+    if (hexPickCallback) {
+      hexPickCallback(key);
+      setHexPickCallback(null);
+      return;
+    }
     if (!isGM) return;
     if (mode === 'build') {
       if (selectedSpecialTile !== null || selectedMyth !== null) return;
@@ -352,7 +397,7 @@ export default function App() {
       socket.emit('tile:reveal', { key });
       trackHexRevealed();
     }
-  }, [isGM, mode, selectedTerrain, selectedSpecialTile, selectedMyth]);
+  }, [hexPickCallback, isGM, mode, selectedTerrain, selectedSpecialTile, selectedMyth]);
 
   const handleHexRightClick = useCallback((key) => {
     if (!isGM) return;
@@ -384,6 +429,25 @@ export default function App() {
   }, [isGM, rollerColor]);
 
   const handleClearLog = useCallback(() => setDiceRolls([]), []);
+
+  // Escape cancels hex-pick mode
+  useEffect(() => {
+    if (!hexPickCallback) return;
+    const onKeyDown = (e) => { if (e.key === 'Escape') setHexPickCallback(null); };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [hexPickCallback]);
+
+  const handleSiteClick = useCallback((hexKey) => setSiteModalHexKey(hexKey), []);
+
+  const handleHexHover = useCallback((hex, e) => {
+    const note = hex.note || '';
+    if (!note) { setHoveredNote(null); return; }
+    if (!isGM && !hex.revealed) { setHoveredNote(null); return; }
+    setHoveredNote({ text: note, x: e.clientX, y: e.clientY });
+  }, [isGM]);
+
+  const handleHexHoverEnd = useCallback(() => setHoveredNote(null), []);
 
   const handleLeaveRoom = () => {
     setCurrentRoom(null);
@@ -524,6 +588,10 @@ export default function App() {
             players={gameState.players}
             map={gameState.map}
             characters={characters}
+            sites={sites}
+            onOpenSite={setSiteModalHexKey}
+            onPickHex={handlePickHex}
+            isPickingHex={!!hexPickCallback}
           />
         )}
 
@@ -542,6 +610,11 @@ export default function App() {
             onPlayerMove={handlePlayerMove}
             onPartyMove={handlePartyMove}
             onPlayerPing={handlePing}
+            sites={sites}
+            onSiteClick={handleSiteClick}
+            onHexHover={handleHexHover}
+            onHexHoverEnd={handleHexHoverEnd}
+            isPickingHex={!!hexPickCallback}
           />
         </div>
       </div>
@@ -558,6 +631,24 @@ export default function App() {
           initialStatMethod={myStatMethod}
           initialFatigued={myCharFatigued}
         />
+      )}
+
+      {siteModalHexKey && (
+        <SiteModal
+          hexKey={siteModalHexKey}
+          sites={sites}
+          isGM={isGM}
+          onClose={() => setSiteModalHexKey(null)}
+        />
+      )}
+
+      {hoveredNote && (
+        <div
+          className="hex-note-tooltip"
+          style={{ left: hoveredNote.x + 14, top: hoveredNote.y - 10 }}
+        >
+          {hoveredNote.text}
+        </div>
       )}
 
       {notification && <div className="notification">{notification}</div>}

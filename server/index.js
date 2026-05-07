@@ -31,6 +31,7 @@ function playerSafeState(state) {
   const safe = structuredClone(state);
   for (const hex of Object.values(safe.map.hexes)) {
     delete hex.myth;
+    delete hex.mythNote;
   }
   return safe;
 }
@@ -306,9 +307,9 @@ io.on('connection', (socket) => {
     const g = gs(); if (!g) return;
     g.updateTerrain(key, terrain, label);
     const hex = g.getState().map.hexes[key];
-    // Strip myth from broadcast — players must never receive myth values;
-    // GM client preserves myth locally via its own state.
-    const { myth: _myth, ...safeHex } = hex;
+    // Strip myth/mythNote from broadcast — players must never receive these values;
+    // GM client preserves them locally via its own state.
+    const { myth: _myth, mythNote: _mythNote, ...safeHex } = hex;
     broadcastRoom('tile:setTerrain', { key, hex: safeHex });
     scheduleAutoSave(roomId());
   });
@@ -349,10 +350,10 @@ io.on('connection', (socket) => {
     if (!isGMSocket()) return;
     const g = gs(); if (!g) return;
     g.revealAll();
-    // Strip myth from each hex before broadcasting to all clients
+    // Strip myth/mythNote from each hex before broadcasting to all clients
     const safeHexes = {};
     for (const [k, h] of Object.entries(g.getState().map.hexes)) {
-      const { myth: _myth, ...safe } = h;
+      const { myth: _myth, mythNote: _mythNote, ...safe } = h;
       safeHexes[k] = safe;
     }
     broadcastRoom('map:revealAll', { hexes: safeHexes });
@@ -595,6 +596,46 @@ io.on('connection', (socket) => {
     const g = gs(); if (!g) return;
     if (!g.setDayPhase(phase)) return;
     broadcastRoom('time:updated', { dayPhase: phase });
+    scheduleAutoSave(roomId());
+  });
+
+  socket.on('site:update', ({ hexKey, site }) => {
+    if (!isGMSocket()) return;
+    const g = gs(); if (!g) return;
+    g.setSite(hexKey, site);
+    broadcastRoom('site:updated', { hexKey, site });
+    scheduleAutoSave(roomId());
+  });
+
+  socket.on('site:delete', ({ hexKey }) => {
+    if (!isGMSocket()) return;
+    const g = gs(); if (!g) return;
+    g.deleteSite(hexKey);
+    broadcastRoom('site:deleted', { hexKey });
+    scheduleAutoSave(roomId());
+  });
+
+  // tile:setNote — GM sets a public note on a hex (visible to players on hover)
+  socket.on('tile:setNote', ({ key, note }) => {
+    if (!isGMSocket()) return;
+    const g = gs(); if (!g) return;
+    if (!g.setHexNote(key, note)) return;
+    broadcastRoom('tile:noteUpdated', { key, note: g.getState().map.hexes[key].note });
+    scheduleAutoSave(roomId());
+  });
+
+  // tile:setMythNote — GM sets a private note on a myth marker (GM-only, never broadcast to players)
+  socket.on('tile:setMythNote', ({ key, mythNote }) => {
+    if (!isGMSocket()) return;
+    const g = gs(); if (!g) return;
+    if (!g.setHexMythNote(key, mythNote)) return;
+    // Only send back to GM sockets
+    const rid = roomId();
+    const room = rooms.get(rid);
+    if (!room) return;
+    for (const sid of room.gmSockets) {
+      io.to(sid).emit('tile:mythNoteUpdated', { key, mythNote: g.getState().map.hexes[key].mythNote });
+    }
     scheduleAutoSave(roomId());
   });
 
